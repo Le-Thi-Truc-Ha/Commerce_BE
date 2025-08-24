@@ -1,0 +1,267 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id            Int            @id @default(autoincrement())
+  fullName      String
+  email         String         @unique
+  phoneNumber   String?
+  password      String
+  dob           DateTime?
+  gender        String?
+  address       String?
+  status        Int?
+  roleId        Int?
+  isLoginGoogle Int
+  role          Role?          @relation(fields: [roleId], references: [id])
+  feedbacks     Feedback[]
+  orders        Order[]
+  shoppingCarts ShoppingCart[]
+  viewHistories ViewHistory[]
+}
+
+model Role {
+  id          Int          @id @default(autoincrement())
+  name        String?      @unique
+  accounts    Account[]
+  permissions Permission[]
+}
+
+model Permission {
+  id     Int    @id @default(autoincrement())
+  url    String @unique
+  roleId Int?
+  role   Role?  @relation(fields: [roleId], references: [id])
+}
+
+model Industries {
+  id         Int          @id @default(autoincrement())
+  name       String       @unique
+  categories Categories[]
+}
+
+model Categories {
+  id                Int               @id @default(autoincrement())
+  name              String            @unique
+  industryId        Int?
+  industry          Industries?       @relation(fields: [industryId], references: [id])
+  products          Product[]
+  voucherCategories VoucherCategory[]
+}
+
+model Product {
+  id                Int                @id @default(autoincrement())
+  name              String
+  description       String
+  price             Int
+  categoryId        Int?
+  status            Int
+  feedbacks         Feedback[]
+  medias            Media[]
+  category          Categories?        @relation(fields: [categoryId], references: [id])
+  productAttributes ProductAttribute[]
+  productPromotions ProductPromotion[]
+  productVariants   ProductVariant[]
+  viewHistories     ViewHistory[]
+}
+
+model ProductAttribute {
+  id              Int              @id @default(autoincrement())
+  productId       Int?
+  tittle          String
+  attributeValues AttributeValue[]
+  product         Product?         @relation(fields: [productId], references: [id])
+}
+
+model AttributeValue {
+  id                 Int                @id @default(autoincrement())
+  productAttributeId Int?
+  value              String
+  productAttribute   ProductAttribute?  @relation(fields: [productAttributeId], references: [id])
+  variantAttributes  VariantAttribute[]
+}
+
+model ProductVariant {
+  id                Int                @id @default(autoincrement())
+  productId         Int?
+  price             Int
+  unit              String
+  quantity          Int
+  orderDetails      OrderDetail[]
+  product           Product?           @relation(fields: [productId], references: [id])
+  shoppingCarts     ShoppingCart[]
+  variantAttributes VariantAttribute[]
+}
+
+model VariantAttribute {
+  id               Int             @id @default(autoincrement())
+  productVariantId Int?
+  attributeValueId Int?
+  attributeValue   AttributeValue? @relation(fields: [attributeValueId], references: [id])
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
+}
+
+model ViewHistory {
+  id        Int      @id @default(autoincrement())
+  accountId Int?
+  productId Int?
+  viewDate  DateTime
+  isLike    Int
+  account   Account? @relation(fields: [accountId], references: [id])
+  product   Product? @relation(fields: [productId], references: [id])
+}
+
+model Media {
+  id         Int       @id @default(autoincrement())
+  url        String
+  type       Int
+  productId  Int?
+  feedbackId Int?
+  feedback   Feedback? @relation(fields: [feedbackId], references: [id])
+  product    Product?  @relation(fields: [productId], references: [id])
+}
+
+model Voucher {
+  id                Int               @id @default(autoincrement())
+  code              String            @unique
+  discountPercent   Float
+  startDate         DateTime
+  endDate           DateTime
+  name              String
+  quantity          Int
+  condition         Int
+  description       String
+  type              Int
+  orderVouchers     OrderVoucher[]
+  voucherCategories VoucherCategory[]
+}
+
+model VoucherCategory {
+  id                  Int                  @id @default(autoincrement())
+  voucherId           Int?
+  categoryId          Int?
+  category            Categories?          @relation(fields: [categoryId], references: [id])
+  voucher             Voucher?             @relation(fields: [voucherId], references: [id])
+  voucherOrderDetails VoucherOrderDetail[]
+}
+
+model Promotion {
+  id                Int                @id @default(autoincrement())
+  percent           Int
+  startDate         DateTime
+  endDate           DateTime
+  productPromotions ProductPromotion[]
+}
+
+model ProductPromotion {
+  id          Int        @id @default(autoincrement())
+  productId   Int?
+  promotionId Int?
+  product     Product?   @relation(fields: [productId], references: [id])
+  promotion   Promotion? @relation(fields: [promotionId], references: [id])
+}
+
+model ShoppingCart {
+  id               Int             @id @default(autoincrement())
+  productVariantId Int?
+  accountId        Int?
+  status           Int
+  quantity         Int
+  account          Account?        @relation(fields: [accountId], references: [id])
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
+}
+
+model Order {
+  id                   Int                  @id @default(autoincrement())
+  accountId            Int?
+  total                Int
+  orderDate            DateTime
+  currentStatus        Int?
+  bills                Bill[]
+  account              Account?             @relation(fields: [accountId], references: [id])
+  orderStatus          OrderStatus?         @relation(fields: [currentStatus], references: [id])
+  orderDetails         OrderDetail[]
+  orderStatusHistories OrderStatusHistory[]
+  orderVouchers        OrderVoucher[]
+}
+
+model OrderStatus {
+  id                   Int                  @id @default(autoincrement())
+  name                 String
+  orders               Order[]
+  orderStatusHistories OrderStatusHistory[]
+}
+
+model OrderStatusHistory {
+  id          Int          @id @default(autoincrement())
+  orderId     Int?
+  statusId    Int?
+  date        DateTime
+  note        String
+  order       Order?       @relation(fields: [orderId], references: [id])
+  orderStatus OrderStatus? @relation(fields: [statusId], references: [id])
+}
+
+model OrderVoucher {
+  id        Int      @id @default(autoincrement())
+  orderId   Int?
+  voucherId Int?
+  order     Order?   @relation(fields: [orderId], references: [id])
+  voucher   Voucher? @relation(fields: [voucherId], references: [id])
+}
+
+model OrderDetail {
+  id                  Int                  @id @default(autoincrement())
+  productVariantId    Int?
+  orderId             Int?
+  quantity            Int
+  order               Order?               @relation(fields: [orderId], references: [id])
+  productVariant      ProductVariant?      @relation(fields: [productVariantId], references: [id])
+  voucherOrderDetails VoucherOrderDetail[]
+}
+
+model VoucherOrderDetail {
+  id              Int              @id @default(autoincrement())
+  voucherId       Int?
+  orderDetailId   Int?
+  orderDetail     OrderDetail?     @relation(fields: [orderDetailId], references: [id])
+  voucherCategory VoucherCategory? @relation(fields: [voucherId], references: [id])
+}
+
+model Feedback {
+  id            Int      @id @default(autoincrement())
+  accountId     Int?
+  productId     Int?
+  content       String
+  feeedbackDate DateTime
+  account       Account? @relation(fields: [accountId], references: [id])
+  product       Product? @relation(fields: [productId], references: [id])
+  medias        Media[]
+}
+
+model Bill {
+  id            Int          @id @default(autoincrement())
+  orderId       Int?
+  shippingFeeId Int?
+  status        Int
+  paymentMethod String
+  invoiceTime   DateTime
+  paymentTime   DateTime
+  total         Int
+  order         Order?       @relation(fields: [orderId], references: [id])
+  shippingFee   ShippingFee? @relation(fields: [shippingFeeId], references: [id])
+}
+
+model ShippingFee {
+  id          Int    @id @default(autoincrement())
+  maxDistance Int
+  minDistance Int
+  cost        Int
+  bills       Bill[]
+}
