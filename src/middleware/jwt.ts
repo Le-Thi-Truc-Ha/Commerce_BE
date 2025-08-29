@@ -5,7 +5,7 @@ import { PayloadData, prisma } from "../interfaces/app";
 
 dotenv.config();
 
-const createJWT = (payload: PayloadData): any => {
+export const createJWT = (payload: PayloadData): any => {
     try {
         const key: Secret = (process.env.JWT_SECRET || "OTHERCOMMERCE2025");
         const token: string = jwt.sign(payload, key, {expiresIn: "1d"});
@@ -15,7 +15,7 @@ const createJWT = (payload: PayloadData): any => {
     }
 }
 
-const verifyToken = (token: string) => {
+export const verifyToken = (token: string) => {
     try {
         const key: Secret = (process.env.JWT_SECRET || "OTHERCOMMERCE2025");
         const decoded = jwt.verify(token, key);
@@ -25,7 +25,7 @@ const verifyToken = (token: string) => {
     }
 }
 
-const checkLogin = (req: Request, res: Response, next: NextFunction): any => {
+export const checkLogin = (req: Request, res: Response, next: NextFunction): any => {
     const token = req.cookies?.token;
     if (!token) {
         res.status(200).json({
@@ -53,7 +53,7 @@ const checkLogin = (req: Request, res: Response, next: NextFunction): any => {
     next();
 }
 
-const getPermission = async (roleId: number) => {
+export const getPermission = async (roleId: number) => {
     try {
         const permissions = await prisma.permission.findMany({
             where: {roleId: roleId},
@@ -67,7 +67,7 @@ const getPermission = async (roleId: number) => {
     }
 }
 
-const checkPermission = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const checkPermission = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (req.user && typeof req.user !== "string") {
         const permissions = await getPermission(req.user.roleId);
 
@@ -107,8 +107,4 @@ const checkPermission = async (req: Request, res: Response, next: NextFunction):
         });
         return;
     }
-}
-
-export default {
-    createJWT, verifyToken, checkLogin, checkPermission
 }

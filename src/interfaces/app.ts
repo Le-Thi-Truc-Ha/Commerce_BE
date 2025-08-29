@@ -12,3 +12,10 @@ export interface ReturnData {
     data: any,
     code: number
 }
+
+export interface GoogleUser {
+    name: string,
+    email: string,
+    idToken: string,
+    uid: string
+}
