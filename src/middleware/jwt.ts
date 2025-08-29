@@ -55,14 +55,10 @@ const checkLogin = (req: Request, res: Response, next: NextFunction): any => {
 
 const getPermission = async (roleId: number) => {
     try {
-        const permissions = await prisma.rolePermission.findMany({
+        const permissions = await prisma.permission.findMany({
             where: {roleId: roleId},
             select: {
-                permission: {
-                    select: {
-                        url: true
-                    }
-                }
+                url: true
             }
         })
         return permissions ? permissions : [];
@@ -92,7 +88,7 @@ const checkPermission = async (req: Request, res: Response, next: NextFunction):
             currentPath = "/customer" + currentPath;
         }
 
-        let canAccess = permissions.some((item) => (item?.permission?.url == currentPath))
+        let canAccess = permissions.some((item) => (item?.url == currentPath))
         if (canAccess) {
             next();
         } else {
