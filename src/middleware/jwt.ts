@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
 import jwt, { Secret } from "jsonwebtoken";
 import { NextFunction, Request, Response } from "express";
-import { PayloadData, prisma } from "../interfaces/app";
+import { PayloadData, prisma } from "../interfaces/app.interface";
+import admin from "../configs/firebase";
 
 dotenv.config();
 
@@ -23,6 +24,29 @@ export const verifyToken = (token: string) => {
     } catch(e) {
         console.log(e);
     }
+}
+
+export const verifyIdToken = async (idToken: string): Promise<PayloadData> => {
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    const existAccount = await prisma.account.findFirst({
+        where: {
+            AND: [
+                {email: decoded.email},
+                {status: 1}
+            ]
+        },
+        select: {
+            id: true,
+            roleId: true
+        }
+    });
+    if (existAccount) {
+        return({
+            id: existAccount.id,
+            roleId: existAccount.roleId ?? -1
+        })
+    }
+    console.log(decoded.email);
 }
 
 export const checkLogin = (req: Request, res: Response, next: NextFunction): any => {

@@ -1,1 +1,1 @@
-import { prisma } from "../interfaces/app";
+import { prisma } from "../interfaces/app.interface";

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { ReturnData } from "../interfaces/app";
+import { ReturnData } from "../interfaces/app.interface";
 import { googleLoginService } from "../services/app.service";
 
 export const googleLoginController = async (req: Request, res: Response): Promise<any> => {
