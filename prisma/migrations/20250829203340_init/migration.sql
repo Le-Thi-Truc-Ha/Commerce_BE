@@ -4,7 +4,7 @@ CREATE TABLE "public"."Account" (
     "fullName" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "phoneNumber" TEXT,
-    "password" TEXT NOT NULL,
+    "password" TEXT,
     "dob" TIMESTAMP(3),
     "gender" TEXT,
     "address" TEXT,

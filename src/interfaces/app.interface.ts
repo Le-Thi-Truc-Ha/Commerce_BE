@@ -4,7 +4,8 @@ export const prisma = new PrismaClient();
 
 export interface PayloadData {
     id: number,
-    roleId: number
+    roleId: number,
+    googleLogin: boolean
 }
 
 export interface ReturnData {

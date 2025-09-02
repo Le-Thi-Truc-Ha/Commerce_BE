@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import jwt, { Secret } from "jsonwebtoken";
+import jwt, { JwtPayload, Secret } from "jsonwebtoken";
 import { NextFunction, Request, Response } from "express";
 import { PayloadData, prisma } from "../interfaces/app.interface";
 import admin from "../configs/firebase";
@@ -16,37 +16,66 @@ export const createJWT = (payload: PayloadData): any => {
     }
 }
 
-export const verifyToken = (token: string) => {
-    try {
-        const key: Secret = (process.env.JWT_SECRET || "OTHERCOMMERCE2025");
-        const decoded = jwt.verify(token, key);
-        return decoded;
-    } catch(e) {
-        console.log(e);
+export const verifyToken = (token: string): PayloadData => {
+    const key: Secret = (process.env.JWT_SECRET || "OTHERCOMMERCE2025");
+    const decoded = jwt.verify(token, key);
+    if (typeof decoded == "string") {
+        throw new Error("Token không hợp lệ")
     }
+    return {
+        id: decoded.id,
+        roleId: decoded.roleId,
+        googleLogin: decoded.googleLogin
+    };
 }
 
 export const verifyIdToken = async (idToken: string): Promise<PayloadData> => {
-    const decoded = await admin.auth().verifyIdToken(idToken);
-    const existAccount = await prisma.account.findFirst({
-        where: {
-            AND: [
-                {email: decoded.email},
-                {status: 1}
-            ]
-        },
-        select: {
-            id: true,
-            roleId: true
+    try {
+        const decoded = await admin.auth().verifyIdToken(idToken);
+        const user = await admin.auth().getUser(decoded.uid);
+        const existAccount = await prisma.account.findFirst({
+            where: {
+                AND: [
+                    {email: decoded.email},
+                    {status: 1}
+                ]
+            },
+            select: {
+                id: true,
+                roleId: true,
+                isLoginGoogle: true
+            }
+        });
+        if (existAccount) {
+            return({
+                id: existAccount.id,
+                roleId: existAccount.roleId ?? -1,
+                googleLogin: existAccount.isLoginGoogle == 1 ? true : false
+            })
+        } else {
+            const createAccount = await prisma.account.create({
+                data: {
+                    fullName: user.displayName ?? "",
+                    email: decoded.email ?? "",
+                    status: 1,
+                    roleId: 2,
+                    isLoginGoogle: 1
+                }
+            });
+            return({
+                id: createAccount.id,
+                roleId: createAccount.roleId ?? -1,
+                googleLogin: true
+            })
         }
-    });
-    if (existAccount) {
+    } catch(e) {
+        console.log(e);
         return({
-            id: existAccount.id,
-            roleId: existAccount.roleId ?? -1
+            id: -1,
+            roleId: -1,
+            googleLogin: false
         })
     }
-    console.log(decoded.email);
 }
 
 export const checkLogin = (req: Request, res: Response, next: NextFunction): any => {
