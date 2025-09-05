@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 export const prisma = new PrismaClient();
 
-export interface PayloadData {
+export interface SessionValue {
     id: number,
     roleId: number,
     googleLogin: boolean
