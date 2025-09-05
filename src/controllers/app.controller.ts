@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { ReturnData, SessionValue } from "../interfaces/app.interface";
 import { checkEmailService, googleLoginService, normalLoginService } from "../services/app.service";
-import { verifySession } from "../middleware/jwt";
+import { deleteOneSession, verifySession } from "../middleware/jwt";
 
 export const reloadPageController = async (req: Request, res: Response): Promise<any> => {
     try {
@@ -96,15 +96,17 @@ export const normalLoginController = async (req: Request, res: Response): Promis
 export const logoutController = async (req: Request, res: Response): Promise<any> => {
     try {
         const authHeader = req.headers["authorization"];
-        const token = authHeader && authHeader.split(" ")[1];
+        const sessionKey = authHeader && authHeader.split(" ")[1];
 
-        if (!token) {
+        if (!sessionKey) {
             return res.status(200).json({
                 message: "Bạn chưa đăng nhập",
                 data: false,
                 code: 1,
             });
         }
+
+        await deleteOneSession(sessionKey);
 
         return res.status(200).json({
             message: "Đăng xuất thành công",
