@@ -7,29 +7,6 @@ import { redis } from "../configs/redis";
 
 dotenv.config();
 
-// export const createJWT = (payload: PayloadData): any => {
-//     try {
-//         const key: Secret = (process.env.JWT_SECRET || "OTHERCOMMERCE2025");
-//         const token: string = jwt.sign(payload, key, {expiresIn: "7d"});
-//         return token;
-//     } catch(e) {
-//         console.log(e);
-//     }
-// }
-
-// export const verifyToken = (token: string): PayloadData => {
-//     const key: Secret = (process.env.JWT_SECRET || "OTHERCOMMERCE2025");
-//     const decoded = jwt.verify(token, key);
-//     if (typeof decoded == "string") {
-//         throw new Error("Token không hợp lệ")
-//     }
-//     return {
-//         id: decoded.id,
-//         roleId: decoded.roleId,
-//         googleLogin: decoded.googleLogin
-//     };
-// }
-
 export const createSession = async (value: SessionValue): Promise<string> => {
     try {
         let sessionKey: string = "";

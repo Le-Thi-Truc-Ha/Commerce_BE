@@ -1,12 +1,14 @@
 import express from "express";
-import { checkEmailController, googleLoginController, logoutController, normalLoginController, reloadPageController } from "../controllers/app.controller";
+import appController from "../controllers/app.controller";
 
 let appRoute = express.Router();
 
-appRoute.get("/reload-page", reloadPageController);
-appRoute.post("/google-login", googleLoginController);
-appRoute.post("/normal-login", normalLoginController);
-appRoute.get("/logout", logoutController);
-appRoute.post("/check-email", checkEmailController);
+appRoute.get("/reload-page", appController.reloadPageController);
+appRoute.post("/google-login", appController.googleLoginController);
+appRoute.post("/normal-login", appController.normalLoginController);
+appRoute.get("/logout", appController.logoutController);
+appRoute.post("/check-email", appController.checkEmailController);
+appRoute.post("/check-opt", appController.checkOtpController);
+appRoute.post("/reset-password", appController.resetPasswordController);
 
 export default appRoute;

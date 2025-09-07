@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { ReturnData, SessionValue } from "../interfaces/app.interface";
-import { checkEmailService, googleLoginService, normalLoginService } from "../services/app.service";
 import { deleteOneSession, verifySession } from "../middleware/jwt";
+import appService from "../services/app.service";
 
-export const reloadPageController = async (req: Request, res: Response): Promise<any> => {
+const reloadPageController = async (req: Request, res: Response): Promise<any> => {
     try {
         const authHeader = req.headers["authorization"];
         const sessionKey = authHeader && authHeader.split(" ")[1];
@@ -41,7 +41,7 @@ export const reloadPageController = async (req: Request, res: Response): Promise
     }
 }
 
-export const googleLoginController = async (req: Request, res: Response): Promise<any> => {
+const googleLoginController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {userInformation} = req.body;
         if (!userInformation) {
@@ -51,7 +51,7 @@ export const googleLoginController = async (req: Request, res: Response): Promis
                 data: false
             })
         }
-        const result: ReturnData = await googleLoginService(userInformation);
+        const result: ReturnData = await appService.googleLoginService(userInformation);
         return res.status(200).json({
             message: result.message,
             code: result.code,
@@ -67,7 +67,7 @@ export const googleLoginController = async (req: Request, res: Response): Promis
     }
 }
 
-export const normalLoginController = async (req: Request, res: Response): Promise<any> => {
+const normalLoginController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {email, password} = req.body;
         if (!email || !password) {
@@ -77,7 +77,7 @@ export const normalLoginController = async (req: Request, res: Response): Promis
                 data: false
             })
         }
-        const result: ReturnData = await normalLoginService(email, password);
+        const result: ReturnData = await appService.normalLoginService(email, password);
         return res.status(200).json({
             message: result.message,
             code: result.code,
@@ -93,7 +93,7 @@ export const normalLoginController = async (req: Request, res: Response): Promis
     }
 }
 
-export const logoutController = async (req: Request, res: Response): Promise<any> => {
+const logoutController = async (req: Request, res: Response): Promise<any> => {
     try {
         const authHeader = req.headers["authorization"];
         const sessionKey = authHeader && authHeader.split(" ")[1];
@@ -123,7 +123,7 @@ export const logoutController = async (req: Request, res: Response): Promise<any
     }
 }
 
-export const checkEmailController = async (req: Request, res: Response): Promise<any> => {
+const checkEmailController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {email} = req.body;
         if (!email) {
@@ -133,7 +133,7 @@ export const checkEmailController = async (req: Request, res: Response): Promise
                 data: false
             })
         }
-        const result = await checkEmailService(email);
+        const result = await appService.checkEmailService(email);
         return res.status(200).json({
             message: result.message,
             code: result.code,
@@ -147,4 +147,61 @@ export const checkEmailController = async (req: Request, res: Response): Promise
             code: -1
         })
     }
+}
+
+const checkOtpController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {email, otp} = req.body;
+        if (!email || !otp) {
+            return res.status(200).json({
+                message: "Không nhận được dữ liệu",
+                code: 1,
+                data: false
+            })
+        }
+        const result = await appService.checkOtpService(email, otp);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        })
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Xảy ra lỗi ở controller",
+            data: false,
+            code: -1
+        })
+    }
+}
+
+const resetPasswordController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {email, newPassword} = req.body;
+        if (!email || !newPassword) {
+            return res.status(200).json({
+                message: "Không nhận được dữ liệu",
+                code: 1,
+                data: false
+            })
+        }
+        const result = await appService.resetPasswordService(email, newPassword);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        })
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Xảy ra lỗi ở controller",
+            data: false,
+            code: -1
+        })
+    }
+}
+
+export default {
+    reloadPageController, googleLoginController, normalLoginController, logoutController,
+    checkEmailController, checkOtpController, resetPasswordController
 }
