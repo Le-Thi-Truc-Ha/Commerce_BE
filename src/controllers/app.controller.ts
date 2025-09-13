@@ -201,7 +201,60 @@ const resetPasswordController = async (req: Request, res: Response): Promise<any
     }
 }
 
+const verifyEmailController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {email} = req.body;
+        if (!email) {
+            return res.status(200).json({
+                message: "Không nhận được dữ liệu",
+                code: 1,
+                data: false
+            })
+        }
+        const result = await appService.verifyEmailService(email);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        })
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Xảy ra lỗi ở controller",
+            data: false,
+            code: -1
+        })
+    }
+}
+
+const createAccountController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {otp, email, name, phone, dob, gender, password} = req.body;
+        if (!otp || !email || !name || !password) {
+            return res.status(200).json({
+                message: "Không nhận được dữ liệu",
+                data: false,
+                code: 1
+            })
+        }
+        const result: ReturnData = await appService.createAccountService(otp, email, name, phone && phone.length == 0 ? null : phone, dob, gender, password);
+        return res.status(200).json({
+            message: result.message,
+            data: result.data,
+            code: result.code
+        })
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Xảy ra lỗi ở controller",
+            data: false,
+            code: -1
+        })
+    }
+}
+
 export default {
     reloadPageController, googleLoginController, normalLoginController, logoutController,
-    checkEmailController, checkOtpController, resetPasswordController
+    checkEmailController, checkOtpController, resetPasswordController, verifyEmailController,
+    createAccountController
 }

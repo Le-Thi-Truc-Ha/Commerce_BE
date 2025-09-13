@@ -137,7 +137,7 @@ export const verifyIdToken = async (idToken: string): Promise<SessionValue> => {
     }
 }
 
-export const checkLogin = (req: Request, res: Response, next: NextFunction): any => {
+export const checkLogin = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
     const authHeader = req.headers["authorization"];
     const sessionKey = authHeader && authHeader.split(" ")[1];
 
@@ -149,7 +149,7 @@ export const checkLogin = (req: Request, res: Response, next: NextFunction): any
         });
     }
 
-    const sessionValue = verifySession(sessionKey);
+    const sessionValue = await verifySession(sessionKey);
 
     if (!sessionValue) {
         return res.status(200).json({

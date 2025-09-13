@@ -21,5 +21,6 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
         })
     } catch(e) {
         console.log(e);
+        throw e;
     }
 }
