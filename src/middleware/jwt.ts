@@ -12,8 +12,8 @@ export const createSession = async (value: SessionValue): Promise<string> => {
         let sessionKey: string = "";
         const uuid = uuidv4();
         await redis.set(uuid, JSON.stringify(value), "EX", 60*60*24*30);
-        await redis.sadd(`session:${value.id}`, uuid);
-        sessionKey = `${uuid}=${value.id}`;
+        await redis.sadd(`session:${value.accountId}`, uuid);
+        sessionKey = `${uuid}=${value.accountId}`;
         return sessionKey;
     } catch(e) {
         console.log(e);
@@ -107,7 +107,7 @@ export const verifyIdToken = async (idToken: string): Promise<SessionValue> => {
         });
         if (existAccount) {
             return({
-                id: existAccount.id,
+                accountId: existAccount.id,
                 roleId: existAccount.roleId ?? -1,
                 googleLogin: existAccount.isLoginGoogle == 1 ? true : false
             })
@@ -122,7 +122,7 @@ export const verifyIdToken = async (idToken: string): Promise<SessionValue> => {
                 }
             });
             return({
-                id: createAccount.id,
+                accountId: createAccount.id,
                 roleId: createAccount.roleId ?? -1,
                 googleLogin: true
             })
@@ -130,7 +130,7 @@ export const verifyIdToken = async (idToken: string): Promise<SessionValue> => {
     } catch(e) {
         console.log(e);
         return({
-            id: -1,
+            accountId: -1,
             roleId: -1,
             googleLogin: false
         })

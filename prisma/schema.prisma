@@ -17,9 +17,10 @@ model Account {
   gender        String?
   address       String?
   status        Int?
-  roleId        Int?
+  roleId        Int
   isLoginGoogle Int
-  role          Role?          @relation(fields: [roleId], references: [id])
+  role          Role           @relation(fields: [roleId], references: [id])
+  addresses     Address[]
   feedbacks     Feedback[]
   orders        Order[]
   shoppingCarts ShoppingCart[]
@@ -36,8 +37,18 @@ model Role {
 model Permission {
   id     Int    @id @default(autoincrement())
   url    String @unique
-  roleId Int?
-  role   Role?  @relation(fields: [roleId], references: [id])
+  roleId Int
+  role   Role   @relation(fields: [roleId], references: [id])
+}
+
+model Address {
+  id          Int     @id @default(autoincrement())
+  name        String
+  address     String
+  phoneNumber String
+  accountId   Int
+  account     Account @relation(fields: [accountId], references: [id])
+  orders      Order[]
 }
 
 model Industries {
@@ -50,7 +61,10 @@ model Categories {
   id                Int               @id @default(autoincrement())
   name              String            @unique
   industryId        Int?
+  parentId          Int?
   industry          Industries?       @relation(fields: [industryId], references: [id])
+  parent            Categories?       @relation("ParentCategory", fields: [parentId], references: [id])
+  children          Categories[]      @relation("ParentCategory")
   products          Product[]
   voucherCategories VoucherCategory[]
 }
@@ -60,11 +74,11 @@ model Product {
   name              String
   description       String
   price             Int
-  categoryId        Int?
+  categoryId        Int
   status            Int
   feedbacks         Feedback[]
   medias            Media[]
-  category          Categories?        @relation(fields: [categoryId], references: [id])
+  category          Categories         @relation(fields: [categoryId], references: [id])
   productAttributes ProductAttribute[]
   productPromotions ProductPromotion[]
   productVariants   ProductVariant[]
@@ -109,12 +123,12 @@ model VariantAttribute {
 
 model ViewHistory {
   id        Int      @id @default(autoincrement())
-  accountId Int?
-  productId Int?
+  accountId Int
+  productId Int
   viewDate  DateTime
   isLike    Int
-  account   Account? @relation(fields: [accountId], references: [id])
-  product   Product? @relation(fields: [productId], references: [id])
+  account   Account  @relation(fields: [accountId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
 }
 
 model Media {
@@ -183,8 +197,10 @@ model Order {
   total                Int
   orderDate            DateTime
   currentStatus        Int?
+  addressId            Int
   bills                Bill[]
   account              Account?             @relation(fields: [accountId], references: [id])
+  address              Address              @relation(fields: [addressId], references: [id])
   orderStatus          OrderStatus?         @relation(fields: [currentStatus], references: [id])
   orderDetails         OrderDetail[]
   orderStatusHistories OrderStatusHistory[]

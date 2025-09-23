@@ -9,7 +9,7 @@ import { redis } from "../configs/redis";
 const googleLoginService = async (userInformation: GoogleUser): Promise<ReturnData> => {
     try {
         const result: SessionValue = await verifyIdToken(userInformation.idToken);
-        if (result.id == -1) {
+        if (result.accountId == -1) {
             return({
                 message: "Đăng nhập thất bại",
                 code: 1,
@@ -17,7 +17,7 @@ const googleLoginService = async (userInformation: GoogleUser): Promise<ReturnDa
             })
         }
         const sessionKey = await createSession({
-            id: result.id,
+            accountId: result.accountId,
             roleId: result.roleId,
             googleLogin: result.googleLogin
         })
@@ -25,7 +25,7 @@ const googleLoginService = async (userInformation: GoogleUser): Promise<ReturnDa
             message: "Đăng nhập thành công",
             code: 0,
             data: {
-                id: result.id,
+                id: result.accountId,
                 roleId: result.roleId,
                 googleLogin: result.googleLogin,
                 sessionKey: sessionKey
@@ -73,7 +73,7 @@ const normalLoginService = async (email: string, password: string): Promise<Retu
             })
         }
         const sessionValue: SessionValue = {
-            id: existAccount.id,
+            accountId: existAccount.id,
             roleId: existAccount.roleId ?? -1,
             googleLogin: existAccount.isLoginGoogle == 1 ? true : false
         }
