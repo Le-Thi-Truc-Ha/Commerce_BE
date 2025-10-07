@@ -229,7 +229,7 @@ const verifyEmailController = async (req: Request, res: Response): Promise<any> 
 
 const createAccountController = async (req: Request, res: Response): Promise<any> => {
     try {
-        const {otp, email, name, phone, dob, gender, password} = req.body;
+        const {otp, email, name, dob, gender, password} = req.body;
         if (!otp || !email || !name || !password) {
             return res.status(200).json({
                 message: "Không nhận được dữ liệu",
@@ -237,7 +237,7 @@ const createAccountController = async (req: Request, res: Response): Promise<any
                 code: 1
             })
         }
-        const result: ReturnData = await appService.createAccountService(otp, email, name, phone && phone.length == 0 ? null : phone, dob, gender, password);
+        const result: ReturnData = await appService.createAccountService(otp, email, name, dob, gender, password);
         return res.status(200).json({
             message: result.message,
             data: result.data,

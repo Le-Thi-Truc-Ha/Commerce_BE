@@ -3,11 +3,9 @@ CREATE TABLE "public"."Account" (
     "id" SERIAL NOT NULL,
     "fullName" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "phoneNumber" TEXT,
     "password" TEXT,
     "dob" TIMESTAMP(3),
     "gender" TEXT,
-    "address" TEXT,
     "status" INTEGER,
     "roleId" INTEGER NOT NULL,
     "isLoginGoogle" INTEGER NOT NULL,
@@ -367,10 +365,10 @@ ALTER TABLE "public"."ShoppingCart" ADD CONSTRAINT "ShoppingCart_productVariantI
 ALTER TABLE "public"."Order" ADD CONSTRAINT "Order_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "public"."Account"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."Order" ADD CONSTRAINT "Order_currentStatus_fkey" FOREIGN KEY ("currentStatus") REFERENCES "public"."OrderStatus"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."Order" ADD CONSTRAINT "Order_addressId_fkey" FOREIGN KEY ("addressId") REFERENCES "public"."Address"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."Order" ADD CONSTRAINT "Order_addressId_fkey" FOREIGN KEY ("addressId") REFERENCES "public"."Address"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."Order" ADD CONSTRAINT "Order_currentStatus_fkey" FOREIGN KEY ("currentStatus") REFERENCES "public"."OrderStatus"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."OrderStatusHistory" ADD CONSTRAINT "OrderStatusHistory_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "public"."Order"("id") ON DELETE SET NULL ON UPDATE CASCADE;

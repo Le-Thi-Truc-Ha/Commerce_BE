@@ -287,8 +287,8 @@ const verifyEmailService = async (email: string): Promise<ReturnData> => {
 }
 
 const createAccountService = async (
-    otp: string, email: string, name: string, phone: string | null, 
-    dob: string | null, gender: string | null, password: string
+    otp: string, email: string, name: string, dob: string | null, 
+    gender: string | null, password: string
 ): Promise<ReturnData> => {
     try {
         const otpAuth = await redis.get(`otp:${email}`);
@@ -305,7 +305,6 @@ const createAccountService = async (
             data: {
                 email: email,
                 fullName: name,
-                phoneNumber: phone,
                 dob: dob && new Date(dob),
                 gender: gender,
                 password: hashPassword,
