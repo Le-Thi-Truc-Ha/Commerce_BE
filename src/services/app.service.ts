@@ -4,7 +4,7 @@ import { createSession, verifyIdToken } from "../middleware/jwt";
 import { sendEmail } from "../configs/email";
 import { redis } from "../configs/redis";
 
-//Phải chuyển dữ liệu datetime về dạng iso string ở fe để gửi lên be, sau đó ở be chuyển thành Date và lưu db
+//Phải chuyển dữ liệu datetime về dạng string ở format "YYYY-MM-DDTHH:mm:ss" hoặc iso string ở fe để gửi lên be, sau đó ở be chuyển thành Date và lưu db
 //dob.toLocaleString("vi-VN"): Lệnh này để chuyển dữ liệu kiểu datetime lấy từ db về dạng ngày tháng năm thời gian
 const googleLoginService = async (userInformation: GoogleUser): Promise<ReturnData> => {
     try {

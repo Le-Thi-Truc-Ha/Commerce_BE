@@ -9,6 +9,7 @@ CREATE TABLE "public"."Account" (
     "status" INTEGER,
     "roleId" INTEGER NOT NULL,
     "isLoginGoogle" INTEGER NOT NULL,
+    "defaultAddress" INTEGER,
 
     CONSTRAINT "Account_pkey" PRIMARY KEY ("id")
 );
@@ -284,6 +285,9 @@ CREATE TABLE "public"."ShippingFee" (
 CREATE UNIQUE INDEX "Account_email_key" ON "public"."Account"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Account_defaultAddress_key" ON "public"."Account"("defaultAddress");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Role_name_key" ON "public"."Role"("name");
 
 -- CreateIndex
@@ -297,6 +301,9 @@ CREATE UNIQUE INDEX "Categories_name_key" ON "public"."Categories"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Voucher_code_key" ON "public"."Voucher"("code");
+
+-- AddForeignKey
+ALTER TABLE "public"."Account" ADD CONSTRAINT "Account_defaultAddress_fkey" FOREIGN KEY ("defaultAddress") REFERENCES "public"."Address"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Account" ADD CONSTRAINT "Account_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "public"."Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

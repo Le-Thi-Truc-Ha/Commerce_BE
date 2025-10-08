@@ -154,7 +154,7 @@ const checkOtpController = async (req: Request, res: Response): Promise<any> => 
         const {email, otp} = req.body;
         if (!email || !otp) {
             return res.status(200).json({
-                message: "Không nhận được dữ liệu",
+                message: "Không nhận được dữ liệu 1",
                 code: 1,
                 data: false
             })
