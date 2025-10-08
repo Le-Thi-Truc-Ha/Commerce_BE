@@ -8,21 +8,23 @@ datasource db {
 }
 
 model Account {
-  id            Int            @id @default(autoincrement())
-  fullName      String
-  email         String         @unique
-  password      String?
-  dob           DateTime?
-  gender        String?
-  status        Int?
-  roleId        Int
-  isLoginGoogle Int
-  role          Role           @relation(fields: [roleId], references: [id])
-  addresses     Address[]
-  feedbacks     Feedback[]
-  orders        Order[]
-  shoppingCarts ShoppingCart[]
-  viewHistories ViewHistory[]
+  id             Int            @id @default(autoincrement())
+  fullName       String
+  email          String         @unique
+  password       String?
+  dob            DateTime?
+  gender         String?
+  status         Int?
+  roleId         Int
+  isLoginGoogle  Int
+  defaultAddress Int?           @unique
+  address        Address?       @relation("DefaultAddress", fields: [defaultAddress], references: [id])
+  role           Role           @relation(fields: [roleId], references: [id])
+  addresses      Address[]      @relation("ListAddresses")
+  feedbacks      Feedback[]
+  orders         Order[]
+  shoppingCarts  ShoppingCart[]
+  viewHistories  ViewHistory[]
 }
 
 model Role {
@@ -40,12 +42,13 @@ model Permission {
 }
 
 model Address {
-  id          Int     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   name        String
   address     String
   phoneNumber String
   accountId   Int
-  account     Account @relation(fields: [accountId], references: [id])
+  defaultFor  Account? @relation("DefaultAddress")
+  account     Account  @relation("ListAddresses", fields: [accountId], references: [id])
   orders      Order[]
 }
 
