@@ -38,6 +38,7 @@ CREATE TABLE "public"."Address" (
     "address" TEXT NOT NULL,
     "phoneNumber" TEXT NOT NULL,
     "accountId" INTEGER NOT NULL,
+    "status" INTEGER NOT NULL,
 
     CONSTRAINT "Address_pkey" PRIMARY KEY ("id")
 );

@@ -47,6 +47,7 @@ model Address {
   address     String
   phoneNumber String
   accountId   Int
+  status      Int
   defaultFor  Account? @relation("DefaultAddress")
   account     Account  @relation("ListAddresses", fields: [accountId], references: [id])
   orders      Order[]
