@@ -172,6 +172,7 @@ model Promotion {
   percent           Int
   startDate         DateTime
   endDate           DateTime
+  status            Int
   productPromotions ProductPromotion[]
 }
 
