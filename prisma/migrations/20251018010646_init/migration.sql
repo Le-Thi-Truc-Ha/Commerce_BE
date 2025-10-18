@@ -44,19 +44,11 @@ CREATE TABLE "public"."Address" (
 );
 
 -- CreateTable
-CREATE TABLE "public"."Industries" (
-    "id" SERIAL NOT NULL,
-    "name" TEXT NOT NULL,
-
-    CONSTRAINT "Industries_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "public"."Categories" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
-    "industryId" INTEGER,
     "parentId" INTEGER,
+    "status" INTEGER NOT NULL,
 
     CONSTRAINT "Categories_pkey" PRIMARY KEY ("id")
 );
@@ -66,7 +58,6 @@ CREATE TABLE "public"."Product" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
-    "price" INTEGER NOT NULL,
     "categoryId" INTEGER NOT NULL,
     "status" INTEGER NOT NULL,
 
@@ -74,41 +65,15 @@ CREATE TABLE "public"."Product" (
 );
 
 -- CreateTable
-CREATE TABLE "public"."ProductAttribute" (
-    "id" SERIAL NOT NULL,
-    "productId" INTEGER,
-    "tittle" TEXT NOT NULL,
-
-    CONSTRAINT "ProductAttribute_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "public"."AttributeValue" (
-    "id" SERIAL NOT NULL,
-    "productAttributeId" INTEGER,
-    "value" TEXT NOT NULL,
-
-    CONSTRAINT "AttributeValue_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "public"."ProductVariant" (
     "id" SERIAL NOT NULL,
     "productId" INTEGER,
     "price" INTEGER NOT NULL,
-    "unit" TEXT NOT NULL,
     "quantity" INTEGER NOT NULL,
+    "size" TEXT NOT NULL,
+    "color" TEXT NOT NULL,
 
     CONSTRAINT "ProductVariant_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "public"."VariantAttribute" (
-    "id" SERIAL NOT NULL,
-    "productVariantId" INTEGER,
-    "attributeValueId" INTEGER,
-
-    CONSTRAINT "VariantAttribute_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -137,7 +102,7 @@ CREATE TABLE "public"."Media" (
 CREATE TABLE "public"."Voucher" (
     "id" SERIAL NOT NULL,
     "code" TEXT NOT NULL,
-    "discountPercent" DOUBLE PRECISION NOT NULL,
+    "discountPercent" INTEGER NOT NULL,
     "startDate" TIMESTAMP(3) NOT NULL,
     "endDate" TIMESTAMP(3) NOT NULL,
     "name" TEXT NOT NULL,
@@ -145,6 +110,7 @@ CREATE TABLE "public"."Voucher" (
     "condition" INTEGER NOT NULL,
     "description" TEXT NOT NULL,
     "type" INTEGER NOT NULL,
+    "status" INTEGER NOT NULL,
 
     CONSTRAINT "Voucher_pkey" PRIMARY KEY ("id")
 );
@@ -252,9 +218,11 @@ CREATE TABLE "public"."VoucherOrderDetail" (
 CREATE TABLE "public"."Feedback" (
     "id" SERIAL NOT NULL,
     "accountId" INTEGER,
-    "productId" INTEGER,
+    "productVariantId" INTEGER,
     "content" TEXT NOT NULL,
     "feeedbackDate" TIMESTAMP(3) NOT NULL,
+    "start" INTEGER NOT NULL,
+    "status" INTEGER NOT NULL,
 
     CONSTRAINT "Feedback_pkey" PRIMARY KEY ("id")
 );
@@ -283,6 +251,42 @@ CREATE TABLE "public"."ShippingFee" (
     CONSTRAINT "ShippingFee_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "public"."ProductFeature" (
+    "id" SERIAL NOT NULL,
+    "productId" INTEGER,
+    "fit" TEXT NOT NULL,
+    "material" TEXT NOT NULL,
+    "occasion" TEXT NOT NULL,
+    "season" TEXT NOT NULL,
+    "color" TEXT NOT NULL,
+    "size" TEXT NOT NULL,
+    "price" TEXT NOT NULL,
+    "style" TEXT NOT NULL,
+    "age" TEXT NOT NULL,
+    "neckline" TEXT NOT NULL,
+    "sleeve" TEXT NOT NULL,
+    "pantLength" TEXT NOT NULL,
+    "pantShape" TEXT NOT NULL,
+    "dressLength" TEXT NOT NULL,
+    "dressShape" TEXT NOT NULL,
+    "skirtLength" TEXT NOT NULL,
+    "skirtShape" TEXT NOT NULL,
+
+    CONSTRAINT "ProductFeature_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."UserBehavior" (
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER,
+    "productId" INTEGER,
+    "behaviorType" INTEGER NOT NULL,
+    "time" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserBehavior_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Account_email_key" ON "public"."Account"("email");
 
@@ -294,9 +298,6 @@ CREATE UNIQUE INDEX "Role_name_key" ON "public"."Role"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Permission_url_key" ON "public"."Permission"("url");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Industries_name_key" ON "public"."Industries"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Categories_name_key" ON "public"."Categories"("name");
@@ -317,28 +318,13 @@ ALTER TABLE "public"."Permission" ADD CONSTRAINT "Permission_roleId_fkey" FOREIG
 ALTER TABLE "public"."Address" ADD CONSTRAINT "Address_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "public"."Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."Categories" ADD CONSTRAINT "Categories_industryId_fkey" FOREIGN KEY ("industryId") REFERENCES "public"."Industries"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "public"."Categories" ADD CONSTRAINT "Categories_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "public"."Categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Product" ADD CONSTRAINT "Product_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "public"."Categories"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."ProductAttribute" ADD CONSTRAINT "ProductAttribute_productId_fkey" FOREIGN KEY ("productId") REFERENCES "public"."Product"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "public"."AttributeValue" ADD CONSTRAINT "AttributeValue_productAttributeId_fkey" FOREIGN KEY ("productAttributeId") REFERENCES "public"."ProductAttribute"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "public"."ProductVariant" ADD CONSTRAINT "ProductVariant_productId_fkey" FOREIGN KEY ("productId") REFERENCES "public"."Product"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "public"."VariantAttribute" ADD CONSTRAINT "VariantAttribute_attributeValueId_fkey" FOREIGN KEY ("attributeValueId") REFERENCES "public"."AttributeValue"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "public"."VariantAttribute" ADD CONSTRAINT "VariantAttribute_productVariantId_fkey" FOREIGN KEY ("productVariantId") REFERENCES "public"."ProductVariant"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."ViewHistory" ADD CONSTRAINT "ViewHistory_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "public"."Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -407,10 +393,19 @@ ALTER TABLE "public"."VoucherOrderDetail" ADD CONSTRAINT "VoucherOrderDetail_vou
 ALTER TABLE "public"."Feedback" ADD CONSTRAINT "Feedback_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "public"."Account"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."Feedback" ADD CONSTRAINT "Feedback_productId_fkey" FOREIGN KEY ("productId") REFERENCES "public"."Product"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."Feedback" ADD CONSTRAINT "Feedback_productVariantId_fkey" FOREIGN KEY ("productVariantId") REFERENCES "public"."ProductVariant"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Bill" ADD CONSTRAINT "Bill_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "public"."Order"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Bill" ADD CONSTRAINT "Bill_shippingFeeId_fkey" FOREIGN KEY ("shippingFeeId") REFERENCES "public"."ShippingFee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."ProductFeature" ADD CONSTRAINT "ProductFeature_productId_fkey" FOREIGN KEY ("productId") REFERENCES "public"."Product"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."UserBehavior" ADD CONSTRAINT "UserBehavior_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "public"."Account"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."UserBehavior" ADD CONSTRAINT "UserBehavior_productId_fkey" FOREIGN KEY ("productId") REFERENCES "public"."Product"("id") ON DELETE SET NULL ON UPDATE CASCADE;

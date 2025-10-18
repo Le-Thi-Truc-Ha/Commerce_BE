@@ -299,8 +299,11 @@ const deleteAddressService = async (accountId: number, idDelete: number[]): Prom
             })
         }
         await Promise.all(idDelete.map((item) => (
-            prisma.address.delete({
-                where: {id: item}
+            prisma.address.update({
+                where: {id: item},
+                data: {
+                    id: 0
+                }
             })
         )))
         return success("Xóa thành công", true);
