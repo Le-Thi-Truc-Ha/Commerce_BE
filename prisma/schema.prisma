@@ -24,6 +24,7 @@ model Account {
   feedbacks      Feedback[]
   orders         Order[]
   shoppingCarts  ShoppingCart[]
+  userBehaviors  UserBehavior[]
   viewHistories  ViewHistory[]
 }
 
@@ -53,18 +54,11 @@ model Address {
   orders      Order[]
 }
 
-model Industries {
-  id         Int          @id @default(autoincrement())
-  name       String       @unique
-  categories Categories[]
-}
-
 model Categories {
   id                Int               @id @default(autoincrement())
   name              String            @unique
-  industryId        Int?
   parentId          Int?
-  industry          Industries?       @relation(fields: [industryId], references: [id])
+  status            Int
   parent            Categories?       @relation("ParentCategory", fields: [parentId], references: [id])
   children          Categories[]      @relation("ParentCategory")
   products          Product[]
@@ -75,52 +69,28 @@ model Product {
   id                Int                @id @default(autoincrement())
   name              String
   description       String
-  price             Int
   categoryId        Int
   status            Int
-  feedbacks         Feedback[]
   medias            Media[]
   category          Categories         @relation(fields: [categoryId], references: [id])
-  productAttributes ProductAttribute[]
+  productFeatures   ProductFeature[]
   productPromotions ProductPromotion[]
   productVariants   ProductVariant[]
+  userBehaviors     UserBehavior[]
   viewHistories     ViewHistory[]
 }
 
-model ProductAttribute {
-  id              Int              @id @default(autoincrement())
-  productId       Int?
-  tittle          String
-  attributeValues AttributeValue[]
-  product         Product?         @relation(fields: [productId], references: [id])
-}
-
-model AttributeValue {
-  id                 Int                @id @default(autoincrement())
-  productAttributeId Int?
-  value              String
-  productAttribute   ProductAttribute?  @relation(fields: [productAttributeId], references: [id])
-  variantAttributes  VariantAttribute[]
-}
-
 model ProductVariant {
-  id                Int                @id @default(autoincrement())
-  productId         Int?
-  price             Int
-  unit              String
-  quantity          Int
-  orderDetails      OrderDetail[]
-  product           Product?           @relation(fields: [productId], references: [id])
-  shoppingCarts     ShoppingCart[]
-  variantAttributes VariantAttribute[]
-}
-
-model VariantAttribute {
-  id               Int             @id @default(autoincrement())
-  productVariantId Int?
-  attributeValueId Int?
-  attributeValue   AttributeValue? @relation(fields: [attributeValueId], references: [id])
-  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
+  id            Int            @id @default(autoincrement())
+  productId     Int?
+  price         Int
+  quantity      Int
+  size          String
+  color         String
+  feedbacks     Feedback[]
+  orderDetails  OrderDetail[]
+  product       Product?       @relation(fields: [productId], references: [id])
+  shoppingCarts ShoppingCart[]
 }
 
 model ViewHistory {
@@ -146,7 +116,7 @@ model Media {
 model Voucher {
   id                Int               @id @default(autoincrement())
   code              String            @unique
-  discountPercent   Float
+  discountPercent   Int
   startDate         DateTime
   endDate           DateTime
   name              String
@@ -154,6 +124,7 @@ model Voucher {
   condition         Int
   description       String
   type              Int
+  status            Int
   orderVouchers     OrderVoucher[]
   voucherCategories VoucherCategory[]
 }
@@ -254,14 +225,16 @@ model VoucherOrderDetail {
 }
 
 model Feedback {
-  id            Int      @id @default(autoincrement())
-  accountId     Int?
-  productId     Int?
-  content       String
-  feeedbackDate DateTime
-  account       Account? @relation(fields: [accountId], references: [id])
-  product       Product? @relation(fields: [productId], references: [id])
-  medias        Media[]
+  id               Int             @id @default(autoincrement())
+  accountId        Int?
+  productVariantId Int?
+  content          String
+  feeedbackDate    DateTime
+  start            Int
+  status           Int
+  account          Account?        @relation(fields: [accountId], references: [id])
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
+  medias           Media[]
 }
 
 model Bill {
@@ -283,4 +256,37 @@ model ShippingFee {
   minDistance Int
   cost        Int
   bills       Bill[]
+}
+
+model ProductFeature {
+  id          Int      @id @default(autoincrement())
+  productId   Int?
+  fit         String
+  material    String
+  occasion    String
+  season      String
+  color       String
+  size        String
+  price       String
+  style       String
+  age         String
+  neckline    String
+  sleeve      String
+  pantLength  String
+  pantShape   String
+  dressLength String
+  dressShape  String
+  skirtLength String
+  skirtShape  String
+  product     Product? @relation(fields: [productId], references: [id])
+}
+
+model UserBehavior {
+  id           Int      @id @default(autoincrement())
+  accountId    Int?
+  productId    Int?
+  behaviorType Int
+  time         DateTime
+  account      Account? @relation(fields: [accountId], references: [id])
+  product      Product? @relation(fields: [productId], references: [id])
 }
