@@ -71,6 +71,7 @@ model Product {
   description       String
   categoryId        Int
   status            Int
+  saleFigure        Int
   medias            Media[]
   category          Categories         @relation(fields: [categoryId], references: [id])
   productFeatures   ProductFeature[]
@@ -91,6 +92,8 @@ model ProductVariant {
   orderDetails  OrderDetail[]
   product       Product?       @relation(fields: [productId], references: [id])
   shoppingCarts ShoppingCart[]
+
+  @@unique([productId, size, color], name: "productVariantUnique")
 }
 
 model ViewHistory {
@@ -111,6 +114,8 @@ model Media {
   feedbackId Int?
   feedback   Feedback? @relation(fields: [feedbackId], references: [id])
   product    Product?  @relation(fields: [productId], references: [id])
+
+  @@unique([productId, url], name: "mediaUnique")
 }
 
 model Voucher {

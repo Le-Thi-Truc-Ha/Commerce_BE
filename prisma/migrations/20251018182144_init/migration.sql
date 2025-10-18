@@ -60,6 +60,7 @@ CREATE TABLE "public"."Product" (
     "description" TEXT NOT NULL,
     "categoryId" INTEGER NOT NULL,
     "status" INTEGER NOT NULL,
+    "saleFigure" INTEGER NOT NULL,
 
     CONSTRAINT "Product_pkey" PRIMARY KEY ("id")
 );
@@ -301,6 +302,12 @@ CREATE UNIQUE INDEX "Permission_url_key" ON "public"."Permission"("url");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Categories_name_key" ON "public"."Categories"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProductVariant_productId_size_color_key" ON "public"."ProductVariant"("productId", "size", "color");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Media_productId_url_key" ON "public"."Media"("productId", "url");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Voucher_code_key" ON "public"."Voucher"("code");
