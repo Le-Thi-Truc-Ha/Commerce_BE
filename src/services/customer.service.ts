@@ -1,26 +1,8 @@
 import { compare, genSalt, hash } from "bcrypt-ts";
-import { prisma, ReturnData } from "../interfaces/app.interface";
+import { notFound, prisma, ReturnData, serviceError, success } from "../interfaces/app.interface";
 import { UserInformation } from "../interfaces/customer.interface";
 
-const serviceError: ReturnData = {
-    message: "Xảy ra lỗi ở service",
-    data: false,
-    code: -1
-}
-const notFound: ReturnData = {
-    message: "Không tìm thấy dữ liệu",
-    data: false,
-    code: 1
-}
-const success = (message: string, data: any) => {
-    return({
-        message: message,
-        data: data,
-        code: 0
-    })
-}
-
-const getAccountInformationService = async (accountId: number): Promise<ReturnData> => {
+export const getAccountInformationService = async (accountId: number): Promise<ReturnData> => {
     try {
         const account = await prisma.account.findFirst({
             where: {
@@ -52,7 +34,7 @@ const getAccountInformationService = async (accountId: number): Promise<ReturnDa
     }
 }
 
-const saveAccountInformationService = async (accountId: number, name: string, email: string, dob: string | null, gender: string | null): Promise<ReturnData> => {
+export const saveAccountInformationService = async (accountId: number, name: string, email: string, dob: string | null, gender: string | null): Promise<ReturnData> => {
     try {
         const account = await prisma.account.update({
             where: {
@@ -74,7 +56,7 @@ const saveAccountInformationService = async (accountId: number, name: string, em
     }
 }
 
-const savePasswordService = async (accountId: number, oldPassword: string, newPassword: string): Promise<ReturnData> => {
+export const savePasswordService = async (accountId: number, oldPassword: string, newPassword: string): Promise<ReturnData> => {
     try {
         const account = await prisma.account.findFirst({
             where: {
@@ -114,7 +96,7 @@ const savePasswordService = async (accountId: number, oldPassword: string, newPa
     }
 }
 
-const createAddressService = async (accountId: number, name: string, phone: string, address: string, isDefault: boolean): Promise<ReturnData> => {
+export const createAddressService = async (accountId: number, name: string, phone: string, address: string, isDefault: boolean): Promise<ReturnData> => {
     try {
         const account = await prisma.account.findFirst({
             where: {
@@ -167,7 +149,7 @@ const createAddressService = async (accountId: number, name: string, phone: stri
     }
 }
 
-const getAllAddressService = async (accountId: number): Promise<ReturnData> => {
+export const getAllAddressService = async (accountId: number): Promise<ReturnData> => {
     try {
         const address = await prisma.address.findMany({
             where: {
@@ -205,7 +187,7 @@ const getAllAddressService = async (accountId: number): Promise<ReturnData> => {
     }
 }
 
-const getAddressService = async (addressId: number, accountId: number): Promise<ReturnData> => {
+export const getAddressService = async (addressId: number, accountId: number): Promise<ReturnData> => {
     try {
         const [address, addressDefault] = await Promise.all([
             prisma.address.findFirst({
@@ -251,7 +233,7 @@ const getAddressService = async (addressId: number, accountId: number): Promise<
     }
 }
 
-const updateAddressService = async (addressId: number, accountId: number, name: string, phone: string, newAddress: string, isDefault: boolean): Promise<ReturnData> => {
+export const updateAddressService = async (addressId: number, accountId: number, name: string, phone: string, newAddress: string, isDefault: boolean): Promise<ReturnData> => {
     try {
         const afterAddress = await prisma.address.update({
             where: {id: addressId},
@@ -279,7 +261,7 @@ const updateAddressService = async (addressId: number, accountId: number, name: 
     }
 }
 
-const deleteAddressService = async (accountId: number, idDelete: number[]): Promise<ReturnData> => {
+export const deleteAddressService = async (accountId: number, idDelete: number[]): Promise<ReturnData> => {
     try {
         const account = await prisma.account.findFirst({
             where: {id: accountId},
@@ -313,8 +295,26 @@ const deleteAddressService = async (accountId: number, idDelete: number[]): Prom
     }
 }
 
-export default {
-    getAccountInformationService, saveAccountInformationService, savePasswordService,
-    createAddressService, getAllAddressService, getAddressService, updateAddressService,
-    deleteAddressService
+export const addFavouriteService = async (accountId: number, productId: number, now: string, seen: boolean): Promise<ReturnData> => {
+    try {
+        const newFavourite = await prisma.viewHistory.create({
+            data: {
+                accountId: accountId,
+                productId: productId,
+                viewDate: new Date(now),
+                isLike: seen ? 3 : 1
+            }
+        });
+        if (!newFavourite) {
+            return({
+                message: "Lưu thất bại",
+                code: 1,
+                data: false
+            })
+        }
+        return success("Lưu thành công", newFavourite);
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
 }

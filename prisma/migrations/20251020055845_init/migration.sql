@@ -61,6 +61,7 @@ CREATE TABLE "public"."Product" (
     "categoryId" INTEGER NOT NULL,
     "status" INTEGER NOT NULL,
     "saleFigure" INTEGER NOT NULL,
+    "rateStar" DOUBLE PRECISION,
 
     CONSTRAINT "Product_pkey" PRIMARY KEY ("id")
 );
@@ -83,9 +84,17 @@ CREATE TABLE "public"."ViewHistory" (
     "accountId" INTEGER NOT NULL,
     "productId" INTEGER NOT NULL,
     "viewDate" TIMESTAMP(3) NOT NULL,
-    "isLike" INTEGER NOT NULL,
 
     CONSTRAINT "ViewHistory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."Favourite" (
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "productId" INTEGER NOT NULL,
+
+    CONSTRAINT "Favourite_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -312,6 +321,9 @@ CREATE UNIQUE INDEX "Media_productId_url_key" ON "public"."Media"("productId", "
 -- CreateIndex
 CREATE UNIQUE INDEX "Voucher_code_key" ON "public"."Voucher"("code");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "ProductPromotion_productId_promotionId_key" ON "public"."ProductPromotion"("productId", "promotionId");
+
 -- AddForeignKey
 ALTER TABLE "public"."Account" ADD CONSTRAINT "Account_defaultAddress_fkey" FOREIGN KEY ("defaultAddress") REFERENCES "public"."Address"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -338,6 +350,12 @@ ALTER TABLE "public"."ViewHistory" ADD CONSTRAINT "ViewHistory_accountId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "public"."ViewHistory" ADD CONSTRAINT "ViewHistory_productId_fkey" FOREIGN KEY ("productId") REFERENCES "public"."Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Favourite" ADD CONSTRAINT "Favourite_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "public"."Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Favourite" ADD CONSTRAINT "Favourite_productId_fkey" FOREIGN KEY ("productId") REFERENCES "public"."Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Media" ADD CONSTRAINT "Media_feedbackId_fkey" FOREIGN KEY ("feedbackId") REFERENCES "public"."Feedback"("id") ON DELETE SET NULL ON UPDATE CASCADE;

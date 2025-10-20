@@ -1,26 +1,8 @@
 import { Request, Response } from "express";
-import { ReturnData } from "../interfaces/app.interface";
-import customerService from "../services/customer.service";
+import { controllerError, dataError, returnController, ReturnData } from "../interfaces/app.interface";
+import * as customerService from "../services/customer.service";
 
-const controllerError: ReturnData = {
-    message: "Xảy ra lỗi ở controller",
-    data: false,
-    code: -1
-}
-const dataError: ReturnData = {
-    message: "Không nhận được dữ liệu",
-    data: false,
-    code: 1
-}
-const returnController = (result: ReturnData, res: Response) => {
-    return res.status(200).json({
-        message: result.message,
-        data: result.data,
-        code: result.code
-    })
-}
-
-const getAccountInformationController = async (req: Request, res: Response): Promise<any> => {
+export const getAccountInformationController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {accountId} = req.query;
         if (!accountId || isNaN(Number(accountId))) {
@@ -34,7 +16,7 @@ const getAccountInformationController = async (req: Request, res: Response): Pro
     }
 }
 
-const saveAccountInformationController = async (req: Request, res: Response): Promise<any> => {
+export const saveAccountInformationController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {accountId, name, email, dob, gender} = req.body;
         if (!accountId || !name || !email) {
@@ -48,7 +30,7 @@ const saveAccountInformationController = async (req: Request, res: Response): Pr
     }
 }
 
-const savePasswordController = async (req: Request, res: Response): Promise<any> => {
+export const savePasswordController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {accountId, oldPassword, newPassword} = req.body;
         if (!accountId || !oldPassword || !newPassword) {
@@ -62,7 +44,7 @@ const savePasswordController = async (req: Request, res: Response): Promise<any>
     }
 }
 
-const createAddressController = async (req: Request, res: Response): Promise<any> => {
+export const createAddressController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {accountId, name, phone, address, isDefault} = req.body;
         if (!accountId || !name || !phone || !address || isDefault == undefined) {
@@ -76,7 +58,7 @@ const createAddressController = async (req: Request, res: Response): Promise<any
     }
 }
 
-const getAllAddressController = async (req: Request, res: Response): Promise<any> => {
+export const getAllAddressController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {accountId} = req.query;
         if (!accountId || isNaN(Number(accountId))) {
@@ -90,7 +72,7 @@ const getAllAddressController = async (req: Request, res: Response): Promise<any
     }
 }
 
-const getAddressController = async (req: Request, res: Response): Promise<any> => {
+export const getAddressController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {addressId, accountId} = req.query;
         if (!addressId || isNaN(Number(addressId)) || !accountId || isNaN(Number(accountId))) {
@@ -104,7 +86,7 @@ const getAddressController = async (req: Request, res: Response): Promise<any> =
     }
 }
 
-const updateAddressController = async (req: Request, res: Response): Promise<any> => {
+export const updateAddressController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {addressId, accountId, name, phone, address, isDefault} = req.body;
         if (!addressId || !accountId || !name || !phone || !address || isDefault == undefined) {
@@ -118,7 +100,7 @@ const updateAddressController = async (req: Request, res: Response): Promise<any
     }
 }
 
-const deleteAddressController = async (req: Request, res: Response): Promise<any> => {
+export const deleteAddressController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {accountId, idDelete} = req.body;
         if (!accountId || !idDelete) {
@@ -132,8 +114,16 @@ const deleteAddressController = async (req: Request, res: Response): Promise<any
     }
 }
 
-export default {
-    getAccountInformationController, saveAccountInformationController, savePasswordController,
-    createAddressController, getAllAddressController, getAddressController, updateAddressController,
-    deleteAddressController
+export const addFavouriteController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, productId, now, seen} = req.body;
+        if (!accountId || !productId || !now || seen == undefined || seen == null) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.addFavouriteService(accountId, productId, now, seen);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return controllerError;
+    }
 }
