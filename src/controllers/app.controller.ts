@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import { ReturnData, SessionValue } from "../interfaces/app.interface";
+import { controllerError, dataError, returnController, ReturnData, SessionValue } from "../interfaces/app.interface";
 import { deleteOneSession, verifySession } from "../middleware/jwt";
-import appService from "../services/app.service";
+import * as appService from "../services/app.service";
 
-const reloadPageController = async (req: Request, res: Response): Promise<any> => {
+export const reloadPageController = async (req: Request, res: Response): Promise<any> => {
     try {
         const authHeader = req.headers["authorization"];
         const sessionKey = authHeader && authHeader.split(" ")[1];
@@ -33,67 +33,39 @@ const reloadPageController = async (req: Request, res: Response): Promise<any> =
         })
     } catch(e) {
         console.log(e);
-        return res.status(500).json({
-            message: "Xảy ra lỗi ở controller",
-            data: false,
-            code: -1
-        })
+        return controllerError;
     }
 }
 
-const googleLoginController = async (req: Request, res: Response): Promise<any> => {
+export const googleLoginController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {userInformation} = req.body;
         if (!userInformation) {
-            return res.status(200).json({
-                message: "Không nhận được dữ liệu",
-                code: 1,
-                data: false
-            })
+            return res.status(200).json(dataError)
         }
         const result: ReturnData = await appService.googleLoginService(userInformation);
-        return res.status(200).json({
-            message: result.message,
-            code: result.code,
-            data: result.data
-        })
+        returnController(result, res);
     } catch(e) {
         console.log(e);
-        return res.status(500).json({
-            message: "Xảy ra lỗi ở controller",
-            data: false,
-            code: -1
-        })
+        return controllerError;
     }
 }
 
-const normalLoginController = async (req: Request, res: Response): Promise<any> => {
+export const normalLoginController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {email, password} = req.body;
         if (!email || !password) {
-            return res.status(200).json({
-                message: "Không nhận được dữ liệu",
-                code: 1,
-                data: false
-            })
+            return res.status(200).json(dataError)
         }
         const result: ReturnData = await appService.normalLoginService(email, password);
-        return res.status(200).json({
-            message: result.message,
-            code: result.code,
-            data: result.data
-        })
+        returnController(result, res);
     } catch(e) {
         console.log(e);
-        return res.status(500).json({
-            message: "Xảy ra lỗi ở controller",
-            data: false,
-            code: -1
-        })
+        return controllerError;
     }
 }
 
-const logoutController = async (req: Request, res: Response): Promise<any> => {
+export const logoutController = async (req: Request, res: Response): Promise<any> => {
     try {
         const authHeader = req.headers["authorization"];
         const sessionKey = authHeader && authHeader.split(" ")[1];
@@ -115,146 +87,91 @@ const logoutController = async (req: Request, res: Response): Promise<any> => {
         })
     } catch(e) {
         console.log(e);
-        return res.status(500).json({
-            message: "Xảy ra lỗi ở controller",
-            data: false,
-            code: -1
-        })
+        return controllerError;
     }
 }
 
-const checkEmailController = async (req: Request, res: Response): Promise<any> => {
+export const checkEmailController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {email} = req.body;
         if (!email) {
-            return res.status(200).json({
-                message: "Không nhận được dữ liệu",
-                code: 1,
-                data: false
-            })
+            return res.status(200).json(dataError)
         }
         const result = await appService.checkEmailService(email);
-        return res.status(200).json({
-            message: result.message,
-            code: result.code,
-            data: result.data
-        })
+        returnController(result, res);
     } catch(e) {
         console.log(e);
-        return res.status(500).json({
-            message: "Xảy ra lỗi ở controller",
-            data: false,
-            code: -1
-        })
+        return controllerError;
     }
 }
 
-const checkOtpController = async (req: Request, res: Response): Promise<any> => {
+export const checkOtpController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {email, otp} = req.body;
         if (!email || !otp) {
-            return res.status(200).json({
-                message: "Không nhận được dữ liệu 1",
-                code: 1,
-                data: false
-            })
+            return res.status(200).json(dataError)
         }
         const result = await appService.checkOtpService(email, otp);
-        return res.status(200).json({
-            message: result.message,
-            code: result.code,
-            data: result.data
-        })
+        returnController(result, res);
     } catch(e) {
         console.log(e);
-        return res.status(500).json({
-            message: "Xảy ra lỗi ở controller",
-            data: false,
-            code: -1
-        })
+        return controllerError;
     }
 }
 
-const resetPasswordController = async (req: Request, res: Response): Promise<any> => {
+export const resetPasswordController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {email, newPassword} = req.body;
         if (!email || !newPassword) {
-            return res.status(200).json({
-                message: "Không nhận được dữ liệu",
-                code: 1,
-                data: false
-            })
+            return res.status(200).json(dataError)
         }
         const result = await appService.resetPasswordService(email, newPassword);
-        return res.status(200).json({
-            message: result.message,
-            code: result.code,
-            data: result.data
-        })
+        returnController(result, res);
     } catch(e) {
         console.log(e);
-        return res.status(500).json({
-            message: "Xảy ra lỗi ở controller",
-            data: false,
-            code: -1
-        })
+        return controllerError;
     }
 }
 
-const verifyEmailController = async (req: Request, res: Response): Promise<any> => {
+export const verifyEmailController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {email} = req.body;
         if (!email) {
-            return res.status(200).json({
-                message: "Không nhận được dữ liệu",
-                code: 1,
-                data: false
-            })
+            return res.status(200).json(dataError)
         }
         const result = await appService.verifyEmailService(email);
-        return res.status(200).json({
-            message: result.message,
-            code: result.code,
-            data: result.data
-        })
+        returnController(result, res);
     } catch(e) {
         console.log(e);
-        return res.status(500).json({
-            message: "Xảy ra lỗi ở controller",
-            data: false,
-            code: -1
-        })
+        return controllerError;
     }
 }
 
-const createAccountController = async (req: Request, res: Response): Promise<any> => {
+export const createAccountController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {otp, email, name, dob, gender, password} = req.body;
         if (!otp || !email || !name || !password) {
-            return res.status(200).json({
-                message: "Không nhận được dữ liệu",
-                data: false,
-                code: 1
-            })
+            return res.status(200).json(dataError)
         }
         const result: ReturnData = await appService.createAccountService(otp, email, name, dob, gender, password);
-        return res.status(200).json({
-            message: result.message,
-            data: result.data,
-            code: result.code
-        })
+        returnController(result, res);
     } catch(e) {
         console.log(e);
-        return res.status(500).json({
-            message: "Xảy ra lỗi ở controller",
-            data: false,
-            code: -1
-        })
+        return controllerError;
     }
 }
 
-export default {
-    reloadPageController, googleLoginController, normalLoginController, logoutController,
-    checkEmailController, checkOtpController, resetPasswordController, verifyEmailController,
-    createAccountController
+export const getBestSellerController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId} = req.query;
+        if (!accountId || isNaN(Number(accountId))) {
+            return res.status(200).json(dataError);
+        }
+
+        const result: ReturnData = await appService.getBestSellerService(Number(accountId));
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return controllerError;
+    }
 }

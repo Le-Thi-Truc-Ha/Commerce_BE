@@ -1,12 +1,13 @@
 import { compare, genSalt, hash } from "bcrypt-ts";
-import { GoogleUser, prisma, ReturnData, SessionValue } from "../interfaces/app.interface";
+import { GoogleUser, notFound, prisma, ReturnData, serviceError, SessionValue, success } from "../interfaces/app.interface";
 import { createSession, verifyIdToken } from "../middleware/jwt";
 import { sendEmail } from "../configs/email";
 import { redis } from "../configs/redis";
 
 //Phải chuyển dữ liệu datetime về dạng string ở format "YYYY-MM-DDTHH:mm:ss" hoặc iso string ở fe để gửi lên be, sau đó ở be chuyển thành Date và lưu db
 //dob.toLocaleString("vi-VN"): Lệnh này để chuyển dữ liệu kiểu datetime lấy từ db về dạng ngày tháng năm thời gian
-const googleLoginService = async (userInformation: GoogleUser): Promise<ReturnData> => {
+
+export const googleLoginService = async (userInformation: GoogleUser): Promise<ReturnData> => {
     try {
         const result: SessionValue = await verifyIdToken(userInformation.idToken);
         if (result.accountId == -1) {
@@ -33,15 +34,11 @@ const googleLoginService = async (userInformation: GoogleUser): Promise<ReturnDa
         })
     } catch(e) {
         console.log(e);
-        return({
-            message: "Xảy ra lỗi ở service",
-            code: -1,
-            data: false
-        })
+        return serviceError;
     }
 }
 
-const normalLoginService = async (email: string, password: string): Promise<ReturnData> => {
+export const normalLoginService = async (email: string, password: string): Promise<ReturnData> => {
     try {
         const existAccount = await prisma.account.findFirst({
             where: {
@@ -90,15 +87,11 @@ const normalLoginService = async (email: string, password: string): Promise<Retu
         })
     } catch(e) {
         console.log(e);
-        return({
-            message: "Xảy ra lỗi ở service",
-            code: -1,
-            data: false
-        })
+        return serviceError;
     }
 }
 
-const checkEmailService = async (email: string): Promise<ReturnData> => {
+export const checkEmailService = async (email: string): Promise<ReturnData> => {
     try {
         const existAccount = await prisma.account.findFirst({
             where: {
@@ -147,15 +140,11 @@ const checkEmailService = async (email: string): Promise<ReturnData> => {
         })
     } catch(e) {
         console.log(e);
-        return({
-            message: "Xảy ra lỗi ở service",
-            code: -1,
-            data: false
-        })
+        return serviceError;
     }
 }
 
-const checkOtpService = async (email: string, otp: string): Promise<ReturnData> => {
+export const checkOtpService = async (email: string, otp: string): Promise<ReturnData> => {
     try {
         const otpAuth = await redis.get(`otp:${email}`);
         if (!otpAuth) {
@@ -179,15 +168,11 @@ const checkOtpService = async (email: string, otp: string): Promise<ReturnData> 
         })
     } catch(e) {
         console.log(e);
-        return({
-            message: "Xảy ra lỗi ở service",
-            code: -1,
-            data: false
-        })
+        return serviceError;
     }
 }
 
-const resetPasswordService = async (email: string, newPassword: string): Promise<ReturnData> => {
+export const resetPasswordService = async (email: string, newPassword: string): Promise<ReturnData> => {
     try {
         const salt = await genSalt(10);
         const hashPassword = await hash(newPassword, salt);
@@ -212,15 +197,11 @@ const resetPasswordService = async (email: string, newPassword: string): Promise
         })
     } catch(e) {
         console.log(e);
-        return({
-            message: "Xảy ra lỗi ở service",
-            code: -1,
-            data: false
-        })
+        return serviceError;
     }
 }
 
-const verifyEmailService = async (email: string): Promise<ReturnData> => {
+export const verifyEmailService = async (email: string): Promise<ReturnData> => {
     try {
         const existAccount = await prisma.account.findFirst({
             where: {
@@ -286,7 +267,7 @@ const verifyEmailService = async (email: string): Promise<ReturnData> => {
     }
 }
 
-const createAccountService = async (
+export const createAccountService = async (
     otp: string, email: string, name: string, dob: string | null, 
     gender: string | null, password: string
 ): Promise<ReturnData> => {
@@ -320,15 +301,79 @@ const createAccountService = async (
         })
     } catch(e) {
         console.log(e);
-        return({
-            message: "Xảy ra lỗi ở service",
-            code: -1,
-            data: false
-        })
+        return serviceError;
     }
 }
 
-export default {
-    googleLoginService, normalLoginService, checkEmailService, checkOtpService,
-    resetPasswordService, verifyEmailService, createAccountService
+export const getBestSellerService = async (accountId: number): Promise<ReturnData> => {
+    try {
+        const now = new Date();
+        const production = await prisma.product.findMany({
+            orderBy: {
+                saleFigure: "desc"
+            },
+            take: 8,
+            select: {
+                id: true,
+                medias: {
+                    take: 1,
+                    select: {
+                        url: true
+                    }
+                },
+                name: true,
+                productVariants: {
+                    orderBy: {
+                        price: "asc"
+                    },
+                    take: 1,
+                    select: {
+                        price: true
+                    }
+                },
+                rateStar: true,
+                productPromotions: {
+                    select: {
+                        promotion: {
+                            where: {
+                                AND: [
+                                    {startDate: {lte: now}},
+                                    {endDate: {gte: now}},
+                                    {status: 1}
+                                ]
+                            },
+                            select: {
+                                percent: true
+                            }
+                        }
+                    }
+                },
+                category: {
+                    select: {
+                        id: true,
+                        parentId: true
+                    }
+                },
+                viewHistories: {
+                    where: {
+                        accountId: accountId
+                    },
+                    orderBy: {
+                        viewDate: "desc"
+                    },
+                    take: 1,
+                    select: {
+                        isLike: true
+                    }
+                }
+            }
+        })
+        if (production.length == 0) {
+            return notFound;
+        }
+        return success("Lấy dữ liệu thành công", production);
+    } catch(e) {
+        console.log(e);
+        return serviceError
+    }
 }
