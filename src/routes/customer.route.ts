@@ -15,5 +15,7 @@ customerRoute.get("/get-address", customerController.getAddressController);
 customerRoute.post("/update-address", customerController.updateAddressController);
 customerRoute.post("/delete-address", customerController.deleteAddressController);
 customerRoute.post("/add-favourite", customerController.addFavouriteController);
+customerRoute.post("/delete-favourite", customerController.deleteFavouriteController);
+customerRoute.get("/get-all-favourite", customerController.getAllFavouriteController);
 
 export default customerRoute;

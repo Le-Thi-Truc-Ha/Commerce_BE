@@ -116,11 +116,39 @@ export const deleteAddressController = async (req: Request, res: Response): Prom
 
 export const addFavouriteController = async (req: Request, res: Response): Promise<any> => {
     try {
-        const {accountId, productId, now, seen} = req.body;
-        if (!accountId || !productId || !now || seen == undefined || seen == null) {
+        const {accountId, productId} = req.body;
+        if (!accountId || !productId) {
             return res.status(200).json(dataError);
         }
-        const result: ReturnData = await customerService.addFavouriteService(accountId, productId, now, seen);
+        const result: ReturnData = await customerService.addFavouriteService(accountId, productId);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return controllerError;
+    }
+}
+
+export const deleteFavouriteController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, productId, take} = req.body;
+        if (!accountId || !productId || !take) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.deleteFavouriteService(accountId, productId, take);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return controllerError;
+    }
+}
+
+export const getAllFavouriteController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, page} = req.query;
+        if (!accountId || isNaN(Number(accountId)) || !page || isNaN(Number(page))) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.getAllFavouriteService(Number(accountId), Number(page));
         returnController(result, res);
     } catch(e) {
         console.log(e);

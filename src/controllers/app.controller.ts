@@ -175,3 +175,17 @@ export const getBestSellerController = async (req: Request, res: Response): Prom
         return controllerError;
     }
 }
+
+export const getProductController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, nowCategory, nowSort, nowPage} = req.body;
+        if (!accountId || nowCategory == undefined || nowSort == undefined || nowPage == undefined) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await appService.getProductService(accountId, nowCategory, nowSort, nowPage);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return controllerError;
+    }
+}
