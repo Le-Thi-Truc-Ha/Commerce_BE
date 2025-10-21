@@ -1,5 +1,5 @@
 import { compare, genSalt, hash } from "bcrypt-ts";
-import { notFound, prisma, ReturnData, serviceError, success } from "../interfaces/app.interface";
+import { notFound, prisma, productInfomation, ReturnData, serviceError, success } from "../interfaces/app.interface";
 import { UserInformation } from "../interfaces/customer.interface";
 
 export const getAccountInformationService = async (accountId: number): Promise<ReturnData> => {
@@ -295,14 +295,12 @@ export const deleteAddressService = async (accountId: number, idDelete: number[]
     }
 }
 
-export const addFavouriteService = async (accountId: number, productId: number, now: string, seen: boolean): Promise<ReturnData> => {
+export const addFavouriteService = async (accountId: number, productId: number): Promise<ReturnData> => {
     try {
-        const newFavourite = await prisma.viewHistory.create({
+        const newFavourite = await prisma.favourite.create({
             data: {
                 accountId: accountId,
-                productId: productId,
-                viewDate: new Date(now),
-                isLike: seen ? 3 : 1
+                productId: productId
             }
         });
         if (!newFavourite) {
@@ -313,6 +311,79 @@ export const addFavouriteService = async (accountId: number, productId: number, 
             })
         }
         return success("Lưu thành công", newFavourite);
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+export const deleteFavouriteService = async (accountId: number, productId: number, take: number): Promise<ReturnData> => {
+    try {
+        const now = new Date();
+        const deleteFavourite = await prisma.favourite.deleteMany({
+            where: {
+                AND: [
+                    {accountId: accountId},
+                    {productId: productId}
+                ]
+            }
+        })
+        if (deleteFavourite.count == 0) {
+            return notFound;
+        }
+        let nextFavourite = null;
+        if (take != -1) {
+            nextFavourite = await prisma.favourite.findMany({
+                where: {
+                    accountId: accountId
+                },
+                orderBy: {id: "desc"},
+                skip: take - 1,
+                take: 1,
+                select: {
+                    id: true,
+                    product: {
+                        select: productInfomation(now)
+                    }
+                }
+            })
+        }
+        return success("Xóa thành công", nextFavourite);
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+export const getAllFavouriteService = async (accountId: number, page: number): Promise<ReturnData> => {
+    try {
+        const size = 8;
+        const now = new Date();
+        const favourite = await prisma.favourite.findMany({
+            where: {
+                accountId: accountId 
+            },
+            orderBy: {
+                id: "desc"
+            },
+            skip: (page - 1) * size,
+            take: size,
+            select: {
+                id: true,
+                product: {
+                    select: productInfomation(now)
+                }
+            }
+        })
+        let count: number = -1;
+        if (page == 1) {
+            count = await prisma.favourite.count({
+                where: {
+                    accountId: accountId
+                }
+            })
+        }
+        return success("Thành công", {count, favourite});
     } catch(e) {
         console.log(e);
         return serviceError;

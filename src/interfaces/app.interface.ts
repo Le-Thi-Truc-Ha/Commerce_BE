@@ -60,3 +60,48 @@ export const returnController = (result: ReturnData, res: Response) => {
         code: result.code
     })
 }
+
+export const productInfomation = (now: Date) => ({
+    id: true,
+    status: true,
+    saleFigure: true,
+    medias: {
+        take: 1,
+        select: {
+            url: true
+        }
+    },
+    name: true,
+    productVariants: {
+        orderBy: {
+            price: "asc" as const
+        },
+        take: 1,
+        select: {
+            price: true
+        }
+    },
+    rateStar: true,
+    productPromotions: {
+        select: {
+            promotion: {
+                where: {
+                    AND: [
+                        {startDate: {lte: now}},
+                        {endDate: {gte: now}},
+                        {status: 1}
+                    ]
+                },
+                select: {
+                    percent: true
+                }
+            }
+        }
+    },
+    category: {
+        select: {
+            id: true,
+            parentId: true
+        }
+    }
+})

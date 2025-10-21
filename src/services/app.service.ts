@@ -1,8 +1,9 @@
 import { compare, genSalt, hash } from "bcrypt-ts";
-import { GoogleUser, notFound, prisma, ReturnData, serviceError, SessionValue, success } from "../interfaces/app.interface";
+import { GoogleUser, notFound, prisma, productInfomation, ReturnData, serviceError, SessionValue, success } from "../interfaces/app.interface";
 import { createSession, verifyIdToken } from "../middleware/jwt";
 import { sendEmail } from "../configs/email";
 import { redis } from "../configs/redis";
+import { Prisma } from "@prisma/client";
 
 //Phải chuyển dữ liệu datetime về dạng string ở format "YYYY-MM-DDTHH:mm:ss" hoặc iso string ở fe để gửi lên be, sau đó ở be chuyển thành Date và lưu db
 //dob.toLocaleString("vi-VN"): Lệnh này để chuyển dữ liệu kiểu datetime lấy từ db về dạng ngày tháng năm thời gian
@@ -309,61 +310,21 @@ export const getBestSellerService = async (accountId: number): Promise<ReturnDat
     try {
         const now = new Date();
         const production = await prisma.product.findMany({
+            where: {
+                status: 1
+            },
             orderBy: {
                 saleFigure: "desc"
             },
             take: 8,
             select: {
-                id: true,
-                medias: {
-                    take: 1,
-                    select: {
-                        url: true
-                    }
-                },
-                name: true,
-                productVariants: {
-                    orderBy: {
-                        price: "asc"
-                    },
-                    take: 1,
-                    select: {
-                        price: true
-                    }
-                },
-                rateStar: true,
-                productPromotions: {
-                    select: {
-                        promotion: {
-                            where: {
-                                AND: [
-                                    {startDate: {lte: now}},
-                                    {endDate: {gte: now}},
-                                    {status: 1}
-                                ]
-                            },
-                            select: {
-                                percent: true
-                            }
-                        }
-                    }
-                },
-                category: {
-                    select: {
-                        id: true,
-                        parentId: true
-                    }
-                },
-                viewHistories: {
+                ...productInfomation(now),
+                favourites: {
                     where: {
                         accountId: accountId
                     },
-                    orderBy: {
-                        viewDate: "desc"
-                    },
-                    take: 1,
                     select: {
-                        isLike: true
+                        id: true
                     }
                 }
             }
@@ -372,6 +333,141 @@ export const getBestSellerService = async (accountId: number): Promise<ReturnDat
             return notFound;
         }
         return success("Lấy dữ liệu thành công", production);
+    } catch(e) {
+        console.log(e);
+        return serviceError
+    }
+}
+
+export const getProductService = async (accountId: number, category: number, sort: number, page: number): Promise<ReturnData> => {
+    try {
+        const size = 12;
+        const now = new Date();
+        let product: any[];
+        if (sort == 0 || sort == 1) {
+            product = await prisma.product.findMany({
+                where: category == 0 ? {
+                    status: 1
+                } : {
+                    AND: [
+                        {status: 1},
+                        {
+                            OR: [
+                                {
+                                    category: {
+                                        id: category
+                                    }
+                                },
+                                {
+                                    category: {
+                                        parentId: category
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                orderBy: sort == 0 ? {id: "desc"} : {saleFigure: "desc"},
+                skip: (page - 1) * size,
+                take: size,
+                select: {
+                    ...productInfomation(now),
+                    favourites: {
+                        where: {
+                            accountId: accountId
+                        },
+                        select: {
+                            id: true
+                        }
+                    }
+                }
+            })
+        } else {
+            const productCategoryObject: {id: number}[] = await prisma.product.findMany({
+                where: category == 0 ? {
+                    status: 1
+                } : {
+                    AND: [
+                        {status: 1},
+                        {
+                            OR: [
+                                {
+                                    category: {
+                                        id: category
+                                    }
+                                },
+                                {
+                                    category: {
+                                        parentId: category
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                select: {
+                    id: true
+                }
+            })
+            const productCategoryArray = productCategoryObject.map((item) => (item.id));
+            let priceProduct: {productId: number, minPrice: number}[] 
+            if (productCategoryArray.length == 0) {
+                priceProduct = await prisma.$queryRaw`
+                    SELECT "productId", MIN("price") AS "minPrice"
+                    FROM "ProductVariant"
+                    WHERE "productId" IS NOT NULL
+                    GROUP BY "productId";
+                `
+            } else {
+                priceProduct = await prisma.$queryRaw`
+                    SELECT "productId", MIN("price") AS "minPrice"
+                    FROM "ProductVariant"
+                    WHERE "productId" IS NOT NULL AND "productId" IN (${Prisma.join(productCategoryArray)})
+                    GROUP BY "productId";
+                `
+            }
+            const productResult: number[] = priceProduct.sort((a, b) => (sort == 2 ? a.minPrice - b.minPrice : b.minPrice - a.minPrice)).slice((page - 1) * size, page * size).map((item) => (item.productId));
+            product = await prisma.product.findMany({
+                where: {
+                    id: {
+                        in: productResult
+                    }
+                },
+                select: {
+                    ...productInfomation(now),
+                    favourites: {
+                        where: {
+                            accountId: accountId
+                        },
+                        select: {
+                            id: true
+                        }
+                    }
+                }
+            })
+            product = product.sort((a, b) => (sort == 2 ? a.productVariants[0].price - b.productVariants[0].price : b.productVariants[0].price - a.productVariants[0].price))
+        }
+        let count = 0;
+        if (page == 1) {
+            count = await prisma.product.count({
+                where: category == 0 ? {
+                    status: 1
+                } : {
+                    AND: [
+                        {status: 1},
+                        {
+                            category: {
+                                OR: [
+                                    {id: category},
+                                    {parentId: category}
+                                ]
+                            }
+                        }
+                    ]
+                }
+            })
+        }
+        return success("Thành công", {product, count})
     } catch(e) {
         console.log(e);
         return serviceError
