@@ -74,6 +74,7 @@ CREATE TABLE "public"."ProductVariant" (
     "quantity" INTEGER NOT NULL,
     "size" TEXT NOT NULL,
     "color" TEXT NOT NULL,
+    "status" INTEGER NOT NULL,
 
     CONSTRAINT "ProductVariant_pkey" PRIMARY KEY ("id")
 );
@@ -81,9 +82,10 @@ CREATE TABLE "public"."ProductVariant" (
 -- CreateTable
 CREATE TABLE "public"."ViewHistory" (
     "id" SERIAL NOT NULL,
-    "accountId" INTEGER NOT NULL,
+    "accountId" INTEGER,
     "productId" INTEGER NOT NULL,
     "viewDate" TIMESTAMP(3) NOT NULL,
+    "uuid" TEXT,
 
     CONSTRAINT "ViewHistory_pkey" PRIMARY KEY ("id")
 );
@@ -231,7 +233,7 @@ CREATE TABLE "public"."Feedback" (
     "productVariantId" INTEGER,
     "content" TEXT NOT NULL,
     "feeedbackDate" TIMESTAMP(3) NOT NULL,
-    "start" INTEGER NOT NULL,
+    "star" INTEGER NOT NULL,
     "status" INTEGER NOT NULL,
 
     CONSTRAINT "Feedback_pkey" PRIMARY KEY ("id")
@@ -293,6 +295,7 @@ CREATE TABLE "public"."UserBehavior" (
     "productId" INTEGER,
     "behaviorType" INTEGER NOT NULL,
     "time" TIMESTAMP(3) NOT NULL,
+    "uuid" TEXT,
 
     CONSTRAINT "UserBehavior_pkey" PRIMARY KEY ("id")
 );
@@ -346,7 +349,7 @@ ALTER TABLE "public"."Product" ADD CONSTRAINT "Product_categoryId_fkey" FOREIGN 
 ALTER TABLE "public"."ProductVariant" ADD CONSTRAINT "ProductVariant_productId_fkey" FOREIGN KEY ("productId") REFERENCES "public"."Product"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."ViewHistory" ADD CONSTRAINT "ViewHistory_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "public"."Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."ViewHistory" ADD CONSTRAINT "ViewHistory_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "public"."Account"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."ViewHistory" ADD CONSTRAINT "ViewHistory_productId_fkey" FOREIGN KEY ("productId") REFERENCES "public"."Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

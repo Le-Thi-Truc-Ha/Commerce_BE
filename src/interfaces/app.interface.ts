@@ -73,6 +73,9 @@ export const productInfomation = (now: Date) => ({
     },
     name: true,
     productVariants: {
+        where: {
+            status: 1
+        },
         orderBy: {
             price: "asc" as const
         },

@@ -14,5 +14,6 @@ appRoute.post("/verify-email", appController.verifyEmailController);
 appRoute.post("/create-account", appController.createAccountController);
 appRoute.get("/get-best-seller", appController.getBestSellerController);
 appRoute.post("/get-product", appController.getProductController);
+appRoute.post("/get-product-detail", appController.getProductDetailController);
 
 export default appRoute;
