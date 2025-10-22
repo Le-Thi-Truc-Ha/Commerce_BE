@@ -189,3 +189,17 @@ export const getProductController = async (req: Request, res: Response): Promise
         return controllerError;
     }
 }
+
+export const getProductDetailController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, productId, pageRate} = req.body;
+        if (!accountId || !productId || !pageRate) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await appService.getProductDetailService(accountId, productId ,pageRate);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return controllerError;
+    }
+}

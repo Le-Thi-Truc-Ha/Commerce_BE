@@ -415,14 +415,14 @@ export const getProductService = async (accountId: number, category: number, sor
                 priceProduct = await prisma.$queryRaw`
                     SELECT "productId", MIN("price") AS "minPrice"
                     FROM "ProductVariant"
-                    WHERE "productId" IS NOT NULL
+                    WHERE "productId" IS NOT NULL AND "status" = 1
                     GROUP BY "productId";
                 `
             } else {
                 priceProduct = await prisma.$queryRaw`
                     SELECT "productId", MIN("price") AS "minPrice"
                     FROM "ProductVariant"
-                    WHERE "productId" IS NOT NULL AND "productId" IN (${Prisma.join(productCategoryArray)})
+                    WHERE "productId" IS NOT NULL AND "status" = 1 AND "productId" IN (${Prisma.join(productCategoryArray)})
                     GROUP BY "productId";
                 `
             }
@@ -471,5 +471,154 @@ export const getProductService = async (accountId: number, category: number, sor
     } catch(e) {
         console.log(e);
         return serviceError
+    }
+}
+
+export const getProductDetailService = async (accountId: number, productId: number, pageRate: number): Promise<ReturnData> => {
+    try {
+        const now = new Date();
+        const product = await prisma.product.findFirst({
+            where: {
+                AND: [
+                    {id: productId},
+                    {status: 1}
+                ]
+            },
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                rateStar: true,
+                productVariants: {
+                    where: {
+                        status: 1
+                    },
+                    select: {
+                        id: true,
+                        color: true,
+                        size: true,
+                        price: true,
+                        quantity: true,
+
+                    }
+                },
+                medias: {
+                    select: {
+                        url: true
+                    }
+                },
+                productPromotions: {
+                    select: {
+                        promotion: {
+                            where: {
+                                AND: [
+                                    {startDate: {lte: now}},
+                                    {endDate: {gte: now}},
+                                    {status: 1}
+                                ]
+                            },
+                            select: {
+                                percent: true
+                            }
+                        }
+                    }
+                },
+                favourites: {
+                    where: {
+                        accountId: accountId
+                    },
+                    select: {
+                        id: true
+                    }
+                }
+            }
+        })
+        const rateSize = 4;
+        let rate: any[] = [];
+        if (pageRate == 1) {
+            const myRate = await prisma.feedback.findFirst({
+                where: {
+                    AND: [
+                        {status: 1},
+                        {accountId: accountId}
+                    ]
+                },
+                select: {
+                    id: true,
+                    feeedbackDate: true,
+                    star: true,
+                    content: true,
+                    account: {
+                        select: {
+                            id: true,
+                            email: true
+                        }
+                    },
+                    medias: {
+                        select: {
+                            url: true
+                        }
+                    }
+                }
+            })
+            rate = [myRate, ...rate]
+        }
+        const lengthRemains = rateSize - rate.length;
+        const otherRate = await prisma.feedback.findMany({
+            where: {
+                AND: [
+                    {status: 1},
+                    {
+                        accountId: {notIn: [accountId]}
+                    }
+                ]
+            },
+            orderBy: {
+                id: "asc"
+            },
+            skip: pageRate == 1 ? lengthRemains : (pageRate - 1) * rateSize,
+            take: lengthRemains,
+            select: {
+                id: true,
+                feeedbackDate: true,
+                star: true,
+                content: true,
+                account: {
+                    select: {
+                        id: true,
+                        email: true
+                    }
+                },
+                productVariant: {
+                    select: {
+                        id: true,
+                        size: true,
+                        color: true
+                    }
+                },
+                medias: {
+                    select: {
+                        url: true
+                    }
+                }
+            }
+        })
+        rate = [...rate, ...otherRate]
+        const count = await prisma.feedback.count({
+            where: {
+                AND: [
+                    {status: 1},
+                    {
+                        productVariant: {
+                            productId: productId
+                        }
+                    }
+                ]
+            }
+        })
+        return success("Thành công", {product, rate, count});
+    } catch(e) {
+        console.log(e);
+        return serviceError;
     }
 }

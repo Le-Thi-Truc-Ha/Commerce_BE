@@ -91,6 +91,7 @@ model ProductVariant {
   quantity      Int
   size          String
   color         String
+  status        Int
   feedbacks     Feedback[]
   orderDetails  OrderDetail[]
   product       Product?       @relation(fields: [productId], references: [id])
@@ -101,10 +102,11 @@ model ProductVariant {
 
 model ViewHistory {
   id        Int      @id @default(autoincrement())
-  accountId Int
+  accountId Int?
   productId Int
   viewDate  DateTime
-  account   Account  @relation(fields: [accountId], references: [id])
+  uuid      String?
+  account   Account? @relation(fields: [accountId], references: [id])
   product   Product  @relation(fields: [productId], references: [id])
 }
 
@@ -247,7 +249,7 @@ model Feedback {
   productVariantId Int?
   content          String
   feeedbackDate    DateTime
-  start            Int
+  star             Int
   status           Int
   account          Account?        @relation(fields: [accountId], references: [id])
   productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
@@ -304,6 +306,7 @@ model UserBehavior {
   productId    Int?
   behaviorType Int
   time         DateTime
+  uuid         String?
   account      Account? @relation(fields: [accountId], references: [id])
   product      Product? @relation(fields: [productId], references: [id])
 }
