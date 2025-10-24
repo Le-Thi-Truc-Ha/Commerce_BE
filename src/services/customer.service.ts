@@ -1,6 +1,6 @@
 import { compare, genSalt, hash } from "bcrypt-ts";
 import { notFound, prisma, productInfomation, ReturnData, serviceError, success } from "../interfaces/app.interface";
-import { UserInformation } from "../interfaces/customer.interface";
+import { CartProduct, UserInformation } from "../interfaces/customer.interface";
 
 export const getAccountInformationService = async (accountId: number): Promise<ReturnData> => {
     try {
@@ -343,7 +343,7 @@ export const deleteFavouriteService = async (accountId: number, productId: numbe
                 select: {
                     id: true,
                     product: {
-                        select: productInfomation(now)
+                        select: productInfomation(now, accountId)
                     }
                 }
             })
@@ -371,7 +371,7 @@ export const getAllFavouriteService = async (accountId: number, page: number): P
             select: {
                 id: true,
                 product: {
-                    select: productInfomation(now)
+                    select: productInfomation(now, accountId)
                 }
             }
         })
@@ -387,5 +387,254 @@ export const getAllFavouriteService = async (accountId: number, page: number): P
     } catch(e) {
         console.log(e);
         return serviceError;
+    }
+}
+
+export const getAllHistoryService = async (accountId: number, page: number): Promise<ReturnData> => {
+    try {
+        const size = 8;
+        const now = new Date();
+        const history: {id: number}[] = await prisma.$queryRaw`
+            select "id" from (
+                select distinct on ("productId") "id", "viewDate"
+                from "ViewHistory"
+                where "accountId" = ${accountId}
+                order by "productId", "viewDate" desc
+            ) as distinctHistory
+            order by "viewDate" desc
+            offset ${(page - 1) * size}
+            limit ${size}
+        `
+        const historyId = history.map((item) => (item.id))
+        const rawHistory = await prisma.viewHistory.findMany({
+            where: {
+                id: {in: historyId}
+            },
+            orderBy: {
+                viewDate: "desc"
+            },
+            select: {
+                id: true,
+                product: {
+                    select: productInfomation(now, accountId)
+                }
+            }
+        })
+        let count: number = -1;
+        if (page == 1) {
+            const groupProduct = await prisma.viewHistory.groupBy({
+                by: ["productId"],
+                where: {accountId: accountId}
+            })
+            if (groupProduct.length > 0) {
+                count = groupProduct.length
+            }
+        }
+        return success("Thành công", {count, history: rawHistory});
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+export const addCartService = async (accountId: number, productVariantId: number, quantity: number, now: string): Promise<ReturnData> => {
+    try {
+        const existItem = await prisma.shoppingCart.findMany({
+            where: {
+                AND: [
+                    {status: {in: [1, 3]}},
+                    {accountId: accountId},
+                    {productVariantId: productVariantId}
+                ]
+            },
+            select: {
+                id: true,
+                quantity: true
+            }
+        })
+
+        if (existItem.length > 0) {
+            const oldQuantity = existItem.reduce((sum, current) => (sum + current.quantity), 0)
+            const result = await prisma.$transaction(async (tx) => {
+                const newCartItem = await tx.shoppingCart.create({
+                    data: {
+                        accountId: accountId,
+                        productVariantId: productVariantId,
+                        quantity: quantity + oldQuantity,
+                        status: 1,
+                        updateAt: new Date(now)
+                    }
+                });
+
+                await Promise.all(
+                    existItem.map(async (item) => (
+                        await tx.shoppingCart.delete({
+                            where: {id: item.id}
+                        })
+                    ))
+                )
+                return newCartItem
+            })
+        } else {
+            const newCartItem = await prisma.shoppingCart.create({
+                data: {
+                    accountId: accountId,
+                    productVariantId: productVariantId,
+                    quantity: quantity,
+                    status: 1,
+                    updateAt: new Date(now)
+                }
+            })
+            if (!newCartItem) {
+                return({
+                    message: "Xảy ra lỗi khi thêm sản phẩm vào giỏ hàng",
+                    data: false,
+                    code: 1
+                })
+            }
+        }
+        
+        return success("Thêm sản phẩm vào giỏ hàng thành công", existItem.length > 0 ? false : true);
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+export const getProductInCartService = async (accountId: number, page: number): Promise<ReturnData> => {
+    try {
+        const now = new Date();
+        const size = 8;
+        const rawProduct = await prisma.shoppingCart.findMany({
+            where: {
+                AND: [
+                    {
+                        status: {
+                            in: [1, 3]
+                        }
+                    },
+                    {accountId: accountId}
+                ]
+                
+            },
+            orderBy: {id: "desc"},
+            select: {
+                id: true,
+                quantity: true,
+                status: true,
+                productVariant: {
+                    select: {
+                        id: true,
+                        size: true,
+                        color: true,
+                        price: true,
+                        quantity: true,
+                        product: {
+                            select: {
+                                id: true,
+                                name: true,
+                                category: {
+                                    select: {
+                                        id: true,
+                                        parentId: true
+                                    }
+                                },
+                                productPromotions: {
+                                    select: {
+                                        promotion: {
+                                            where: {
+                                                AND: [
+                                                    {startDate: {lte: now}},
+                                                    {endDate: {gte: now}},
+                                                    {status: 1}
+                                                ]
+                                            },
+                                            select: {
+                                                percent: true
+                                            }
+                                        }
+                                    }
+                                },
+                                medias: {
+                                    take: 1,
+                                    select: {
+                                        url: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            skip: (page - 1) * size,
+            take: size
+        })
+
+        const product: CartProduct[] = rawProduct.map((item) => {
+            const product = item.productVariant?.product;
+            const variant = item.productVariant;
+            const categories: string[] = ["shirt", "pant", "dress", "skirt"]
+            const category = (product?.category.parentId ? product?.category.parentId : product?.category.id) ?? 0
+            const percent = item.productVariant?.product?.productPromotions.find((item) => (item != null))?.promotion?.percent;
+            
+            return({
+                productId: product?.id ?? -1, 
+                productVariantId: variant?.id ?? -1,
+                cartId: item.id,
+                parentCategory: categories[category - 1],
+                url: product?.medias[0].url ?? "",
+                name: product?.name ?? "",
+                price: variant?.price ?? -1,
+                discount: percent ? Math.round((variant?.price ?? 0 * ((100 - percent) / 100)) / 1000) * 1000 : null,
+                color: variant?.color ?? "",
+                size: variant?.size ?? "",
+                quantityOrder: item.quantity,
+                quantity: variant?.quantity ?? -1,
+                status: item.status
+            })
+        })
+
+        const count = await prisma.shoppingCart.count({
+            where: {
+                status: {in: [1, 3]}
+            }
+        })
+
+        return success("Thành công", {product, count});
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+export const updateQuantityCartService = async (quantityCart: {cartId: number, quantityUpdate: number}[], now: string): Promise<ReturnData> => {
+    try {
+        let count = 0;
+        for (const item of quantityCart) {
+            const result = await prisma.shoppingCart.updateMany({
+                where: {
+                    AND: [
+                        {status: {in: [1, 3]}},
+                        {id: item.cartId}
+                    ]
+                },
+                data: {
+                    quantity: item.quantityUpdate,
+                    updateAt: new Date(now)
+                }
+            })
+            count += result.count
+        }
+        if (count == 0 && quantityCart.length > 0) {
+            return({
+                message: "Cập nhật số lượng trong giỏ hàng thất bại",
+                data: false,
+                code: 1
+            })
+        }
+        return success("Thành công", true);
+    } catch(e) {
+        console.log(e);
+        return serviceError
     }
 }

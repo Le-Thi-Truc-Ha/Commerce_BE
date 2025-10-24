@@ -15,5 +15,8 @@ appRoute.post("/create-account", appController.createAccountController);
 appRoute.get("/get-best-seller", appController.getBestSellerController);
 appRoute.post("/get-product", appController.getProductController);
 appRoute.post("/get-product-detail", appController.getProductDetailController);
+appRoute.post("/save-history", appController.saveHistoryController);
+appRoute.post("/update-cart-leave", appController.updateCartLeaveController);
+appRoute.post("/check-update-cart", appController.checkUpdateCartController);
 
 export default appRoute;

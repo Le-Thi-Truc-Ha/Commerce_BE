@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
 import { controllerError, dataError, returnController, ReturnData, SessionValue } from "../interfaces/app.interface";
-import { deleteOneSession, verifySession } from "../middleware/jwt";
+import { createSession, deleteOneSession, verifySession } from "../middleware/jwt";
 import * as appService from "../services/app.service";
+import { v1 as uuidv1 } from "uuid"; 
+import { redis } from "../configs/redis";
+import { updateQuantityCartService } from "../services/customer.service";
 
 export const reloadPageController = async (req: Request, res: Response): Promise<any> => {
     try {
@@ -9,10 +12,12 @@ export const reloadPageController = async (req: Request, res: Response): Promise
         const sessionKey = authHeader && authHeader.split(" ")[1];
 
         if (!sessionKey) {
+            const uuid = uuidv1();
+            await redis.set(uuid, JSON.stringify({accountId: -1, roleId: 2, googleLogin: false}), "EX", 60*60*24*30);
             return res.status(200).json({
                 message: "Bạn chưa đăng nhập",
-                data: false,
-                code: 1,
+                data: uuid,
+                code: 2,
             });
         }
         
@@ -26,42 +31,59 @@ export const reloadPageController = async (req: Request, res: Response): Promise
             });
         }
 
+        if (sessionValue.accountId == -1) {
+            return res.status(200).json({
+                message: "Bạn chưa đăng nhập",
+                data: false,
+                code: 1,
+            });
+        }
+
+        const result = await appService.reloadPageService(sessionValue.accountId);
+
         return res.status(200).json({
             message: "Xác thực thành công",
             code: 0,
-            data: sessionValue
+            data: {account: sessionValue, cart: result.data}
         })
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
 export const googleLoginController = async (req: Request, res: Response): Promise<any> => {
     try {
+        const authHeader = req.headers["authorization"];
+        const sessionKey = authHeader && authHeader.split(" ")[1];
+        
         const {userInformation} = req.body;
         if (!userInformation) {
             return res.status(200).json(dataError)
         }
-        const result: ReturnData = await appService.googleLoginService(userInformation);
+        const result: ReturnData = await appService.googleLoginService(userInformation, sessionKey);
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
 export const normalLoginController = async (req: Request, res: Response): Promise<any> => {
     try {
+        const authHeader = req.headers["authorization"];
+        const sessionKey = authHeader && authHeader.split(" ")[1];
+
         const {email, password} = req.body;
         if (!email || !password) {
             return res.status(200).json(dataError)
         }
-        const result: ReturnData = await appService.normalLoginService(email, password);
+
+        const result: ReturnData = await appService.normalLoginService(email, password, sessionKey);
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -87,7 +109,7 @@ export const logoutController = async (req: Request, res: Response): Promise<any
         })
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -101,7 +123,7 @@ export const checkEmailController = async (req: Request, res: Response): Promise
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -115,7 +137,7 @@ export const checkOtpController = async (req: Request, res: Response): Promise<a
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -129,7 +151,7 @@ export const resetPasswordController = async (req: Request, res: Response): Prom
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -143,7 +165,7 @@ export const verifyEmailController = async (req: Request, res: Response): Promis
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -157,7 +179,7 @@ export const createAccountController = async (req: Request, res: Response): Prom
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -172,7 +194,7 @@ export const getBestSellerController = async (req: Request, res: Response): Prom
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -186,7 +208,7 @@ export const getProductController = async (req: Request, res: Response): Promise
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -200,6 +222,55 @@ export const getProductDetailController = async (req: Request, res: Response): P
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const saveHistoryController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, productId, now} = req.body;
+        if (!accountId || !productId || !now) {
+            return res.status(200).json(dataError);
+        }
+
+        let sessionKey = undefined;
+        if (accountId == -1) {
+            const authHeader = req.headers["authorization"];
+            sessionKey = authHeader && authHeader.split(" ")[1];
+        }
+
+        const result: ReturnData = await appService.saveHistoryService(accountId, productId, now, sessionKey);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const updateCartLeaveController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {quantityCart, updateAt} = req.body;
+        if (!quantityCart || !updateAt) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await updateQuantityCartService(quantityCart, updateAt);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const checkUpdateCartController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {cartId} = req.body;
+        if (!cartId) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await appService.checkUpdateCartService(cartId);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
     }
 }
