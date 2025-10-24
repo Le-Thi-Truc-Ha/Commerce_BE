@@ -61,12 +61,14 @@ export const returnController = (result: ReturnData, res: Response) => {
     })
 }
 
-export const productInfomation = (now: Date) => ({
+export const productInfomation = (now: Date, accountId: number) => ({
     id: true,
     status: true,
     saleFigure: true,
     medias: {
+        
         take: 1,
+        
         select: {
             url: true
         }
@@ -105,6 +107,14 @@ export const productInfomation = (now: Date) => ({
         select: {
             id: true,
             parentId: true
+        }
+    },
+    favourites: {
+        where: {
+            accountId: accountId
+        },
+        select: {
+            id: true
         }
     }
 })

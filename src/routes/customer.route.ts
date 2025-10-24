@@ -17,5 +17,9 @@ customerRoute.post("/delete-address", customerController.deleteAddressController
 customerRoute.post("/add-favourite", customerController.addFavouriteController);
 customerRoute.post("/delete-favourite", customerController.deleteFavouriteController);
 customerRoute.get("/get-all-favourite", customerController.getAllFavouriteController);
+customerRoute.get("/get-all-history", customerController.getAllHistoryController);
+customerRoute.post("/add-cart", customerController.addCartController);
+customerRoute.post("/get-product-in-cart", customerController.getProductInCartController);
+customerRoute.post("/update-quantity-cart", customerController.updateQuantityCartController);
 
 export default customerRoute;

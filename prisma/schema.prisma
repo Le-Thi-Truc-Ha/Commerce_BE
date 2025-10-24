@@ -180,6 +180,7 @@ model ShoppingCart {
   accountId        Int?
   status           Int
   quantity         Int
+  updateAt         DateTime
   account          Account?        @relation(fields: [accountId], references: [id])
   productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
 }

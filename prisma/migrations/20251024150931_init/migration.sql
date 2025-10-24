@@ -163,6 +163,7 @@ CREATE TABLE "public"."ShoppingCart" (
     "accountId" INTEGER,
     "status" INTEGER NOT NULL,
     "quantity" INTEGER NOT NULL,
+    "updateAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "ShoppingCart_pkey" PRIMARY KEY ("id")
 );

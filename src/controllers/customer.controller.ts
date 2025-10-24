@@ -12,7 +12,7 @@ export const getAccountInformationController = async (req: Request, res: Respons
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -26,7 +26,7 @@ export const saveAccountInformationController = async (req: Request, res: Respon
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -40,7 +40,7 @@ export const savePasswordController = async (req: Request, res: Response): Promi
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -54,7 +54,7 @@ export const createAddressController = async (req: Request, res: Response): Prom
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -68,7 +68,7 @@ export const getAllAddressController = async (req: Request, res: Response): Prom
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -82,7 +82,7 @@ export const getAddressController = async (req: Request, res: Response): Promise
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -96,7 +96,7 @@ export const updateAddressController = async (req: Request, res: Response): Prom
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -110,7 +110,7 @@ export const deleteAddressController = async (req: Request, res: Response): Prom
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -124,7 +124,7 @@ export const addFavouriteController = async (req: Request, res: Response): Promi
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -138,7 +138,7 @@ export const deleteFavouriteController = async (req: Request, res: Response): Pr
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
     }
 }
 
@@ -152,6 +152,63 @@ export const getAllFavouriteController = async (req: Request, res: Response): Pr
         returnController(result, res);
     } catch(e) {
         console.log(e);
-        return controllerError;
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const getAllHistoryController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, page} = req.query;
+        if (!accountId || isNaN(Number(accountId)) || !page || isNaN(Number(page))) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.getAllHistoryService(Number(accountId), Number(page));
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const addCartController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, productVariantId, quantity, now} = req.body;
+        if (!accountId || !productVariantId || !quantity || !now) {
+            return res.status(200).json(dataError);
+        }
+        
+        const result: ReturnData = await customerService.addCartService(accountId, productVariantId, quantity, now);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const getProductInCartController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, page} = req.body;
+        if (!accountId || !page) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.getProductInCartService(accountId, page);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const updateQuantityCartController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {quantityCart, now} = req.body;
+        if (!quantityCart || !now) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.updateQuantityCartService(quantityCart, now);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
     }
 }
