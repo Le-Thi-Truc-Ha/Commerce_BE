@@ -486,9 +486,99 @@ const getBillController = async (req: Request, res: Response): Promise<any> => {
     }
 };
 
+/** Quản lý khách hàng */
+const getAllCustomersController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const search = req.query.search ? String(req.query.search) : "";
+
+        const result = await adminService.getAllCustomers(page, limit, search);
+
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data,
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            message: "Lỗi server lấy danh sách khách hàng!",
+            code: -1,
+            data: false,
+        });
+    }
+};
+
+const getCustomerDetailController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.id);
+        let message = "";
+        if (isNaN(id) || id <= 0) {
+            message = "ID khách hàng không hợp lệ!";
+        } else if (id !== 2) {
+            message = "ID không phải là khách hàng!";
+        }
+        if (message) {
+            return res.status(400).json({
+                message,
+                code: 2,
+                data: false
+            });
+        }
+
+        const result = await adminService.getCustomerDetail(id);
+
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data,
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            message: "Lỗi server lấy thông tin khách hàng!",
+            code: -1,
+            data: false,
+        });
+    }
+};
+
+const getCustomerOrdersController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.id);
+        if (isNaN(id) || id <= 0) {
+            return res.status(400).json({
+                message: "ID khách hàng không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+
+        const result = await adminService.getCustomerOrders(id, page, limit);
+
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data,
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            message: "Lỗi server lấy danh sách đơn hàng của khách hàng!",
+            code: -1,
+            data: false,
+        });
+    }
+};
+
 export default {
     getRecentOrdesController, getSalesDataController, getCategoriesSaleController, 
     getAllProductsController, getProductByIdController, getProductCategoriesController, createProductController, updateProductController, deleteProductController,
     getProductDetailController, getAllVariantsController, getVariantByIdController, createVariantController, updateVariantController, deleteVariantController,
     getStatusController, getAllOrdersController, getBillController,
+    getAllCustomersController, getCustomerDetailController, getCustomerOrdersController,
 }

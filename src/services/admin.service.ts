@@ -875,9 +875,192 @@ const getBill = async ( orderId: number ): Promise<ReturnData> => {
     }
 };
 
+/** Quản lý khách hàng */
+const getAllCustomers =  async (page: number, limit: number, search: string): Promise<ReturnData> => {
+    try {
+        const skip = (page - 1) * limit;
+
+        let searchCondi: any = { roleId: 2 };
+
+        if (search) {
+            const isPhoneSearch = /^\d+$/.test(search.trim());
+
+            if (isPhoneSearch) {
+                const matchedAddresses = await prisma.address.findMany({
+                    where: {
+                        phoneNumber: { contains: search, mode: "insensitive" },
+                    },
+                    select: { id: true },
+                });
+
+                const matchedAddressIds = matchedAddresses.map((a: any) => a.id);
+
+                searchCondi = {
+                    roleId: 2,
+                    defaultAddress: { in: matchedAddressIds },
+                };
+            } else {
+                searchCondi = {
+                    roleId: 2,
+                    OR: [
+                        { fullName: { contains: search, mode: "insensitive" } },
+                        { email: { contains: search, mode: "insensitive" } },
+                    ],
+                };
+            }
+        }
+
+        const customers = await prisma.account.findMany({
+            where: searchCondi,
+            orderBy: { id: "asc" },
+            skip,
+            take: limit,
+            select: {
+                id: true,
+                fullName: true,
+                email: true,
+                gender: true,
+                dob: true,
+                status: true,
+                defaultAddress: true,
+            },
+        });
+
+        const defaultAddressIds = customers.map((c: any) => c.defaultAddress).filter((id: number) => id !== null);
+
+        const addresses = await prisma.address.findMany({
+            where: { id: { in: defaultAddressIds } },
+            select: { id: true, phoneNumber: true },
+        });
+
+        const result = customers.map((c: any) => ({
+            ...c,
+            phoneNumber: addresses.find((a: any) => a.id === c.defaultAddress)?.phoneNumber || null,
+        }));
+
+        const total = await prisma.account.count({ where: searchCondi });
+
+        return {
+            message: "Lấy danh sách khách hàng thành công!",
+            code: 0,
+            data: { result, total }
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách khách hàng!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getCustomerDetail = async (id: number): Promise<ReturnData> => {
+    try {
+        const customer = await prisma.account.findUnique({
+            where: { id: Number(id), roleId: 2 },
+            select: {
+                id: true,
+                addresses: {
+                    where: { status: 1 },
+                    select: {
+                        id: true,
+                        address: true,
+                        name: true,
+                        phoneNumber: true
+                    }
+                }
+            }
+        });
+        
+        if (!customer) {
+            return {
+                message: "Không tìm thấy khách hàng!",
+                code: 1,
+                data: false
+            };
+        }
+
+        const defaultAddress = await prisma.account.findUnique({
+            where: { id: customer.id },
+            select: { defaultAddress: true }
+        });
+
+        if (defaultAddress?.defaultAddress && customer.addresses.length > 0) {
+            customer.addresses.sort((a: any, b: any) => {
+                if (a.id === defaultAddress.defaultAddress) return -1;
+                if (b.id === defaultAddress.defaultAddress) return 1;
+                return 0;
+            });
+        }      
+
+        return {
+            message: "Lấy thông tin khách hàng thành công!",
+            code: 0,
+            data: customer
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy thông tin khách hàng!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getCustomerOrders = async (id: number, page: number, limit: number): Promise<ReturnData> => {
+    try {
+        const customer = await prisma.account.findUnique({where: {id: Number(id)}});
+        if (!customer) {
+            return {
+                message: "Không tìm thấy khách hàng!",
+                code: 1,
+                data: false
+            };
+        }
+        const skip = (page - 1) * limit;
+        const orders = await prisma.account.findUnique({
+            where: { id: Number(id) },
+            select: {
+                id: true,
+                orders: {
+                    orderBy: { orderDate: 'desc' },
+                    skip,
+                    take: limit,
+                    select: {
+                        id: true,
+                        orderDate: true,
+                        orderStatus: true,
+                        bills: { select: { total: true }}
+                    }
+                }
+            }
+        });
+
+        const total = await prisma.order.count({
+            where: { accountId: Number(id) }
+        });
+        
+        return {
+            message: "Lấy danh sách đơn hàng của khách hàng thành công!",
+            code: 0,
+            data: { orders, total }
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách đơn hàng của khách hàng!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
 export default {
     getRecentOrders, getSalesData, getCategoriesSale, 
     getAllProducts, getProductById, getProductCategories, createProduct, updateProduct, deleteProduct,
     getProdctDetail, getAllVariants, getVariantById, createVariant, updateVariant, deleteVariant,
     getStatus, getAllOrders, getBill,
+    getAllCustomers, getCustomerDetail, getCustomerOrders,
 }

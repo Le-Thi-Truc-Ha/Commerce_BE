@@ -36,4 +36,9 @@ adminRoute.get("/status", adminController.getStatusController);
 adminRoute.get("/orders", adminController.getAllOrdersController);
 adminRoute.get("/bill", adminController.getBillController);
 
+/** Quản lý khách hàng */
+adminRoute.get("/customers", adminController.getAllCustomersController);
+adminRoute.get("/customer-detail", adminController.getCustomerDetailController);
+adminRoute.get("/customer-orders", adminController.getCustomerOrdersController);
+
 export default adminRoute;
