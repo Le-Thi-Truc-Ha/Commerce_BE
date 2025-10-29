@@ -9,6 +9,10 @@ import { v1 as uuidv1 } from "uuid";
 //Phải chuyển dữ liệu datetime về dạng string ở format "YYYY-MM-DDTHH:mm:ss" hoặc iso string ở fe để gửi lên be, sau đó ở be chuyển thành Date và lưu db
 //dob.toLocaleString("vi-VN"): Lệnh này để chuyển dữ liệu kiểu datetime lấy từ db về dạng ngày tháng năm thời gian
 
+// Bật extension unaccent (tìm kiếm không phân biệt dấu, hoa thường) của postgreSQL
+// CREATE EXTENSION IF NOT EXISTS unaccent;
+// SELECT * FROM pg_extension WHERE extname = 'unaccent';
+
 export const reloadPageService = async (accountId: number): Promise<ReturnData> => {
     try {
         const countCart = await prisma.shoppingCart.count({
@@ -495,6 +499,22 @@ export const getProductService = async (accountId: number, category: number, sor
 export const getProductDetailService = async (accountId: number, productId: number, pageRate: number): Promise<ReturnData> => {
     try {
         const now = new Date();
+        const existProduct = await prisma.product.findMany({
+            where: {
+                AND: [
+                    {id: productId},
+                    {status: 1}
+                ]
+            },
+            select: {id: true}
+        })
+        if (existProduct.length == 0) {
+            return({
+                message: "Không tìm thấy sản phẩm",
+                data: false,
+                code: 2
+            })
+        }
         const product = await prisma.product.findFirst({
             where: {
                 AND: [
@@ -508,16 +528,13 @@ export const getProductDetailService = async (accountId: number, productId: numb
                 description: true,
                 rateStar: true,
                 productVariants: {
-                    where: {
-                        status: 1
-                    },
                     select: {
                         id: true,
                         color: true,
                         size: true,
                         price: true,
                         quantity: true,
-
+                        status: true
                     }
                 },
                 medias: {
@@ -706,5 +723,75 @@ export const checkUpdateCartService = async (cartId: number): Promise<ReturnData
     } catch(e) {
         console.log(e);
         return serviceError
+    }
+}
+
+export const findValueService = async (findValue: string, productId: number[] | null, page: number, accountId: number): Promise<ReturnData> => {
+    try {
+        // ts_rank: Tính mức độ giống nhau giữa chuỗi đầu vào và chuỗi trong csdl
+        // to_tsvector: Hàm tách các từ trong văn bản
+        // unaccent: Loại bỏ dấu
+        // coalese(a, b): Nếu a là null thì lấy b, nếu a khác null thì lấy a
+        // ||' '||: Phép nối chuỗi trong sql
+        // string_agg(a, ' '): Nối tất cả các giá trị của cột a có cùng giá trị tại cột được group by và phân cách bằng ' ' (dấu cách)
+        // plainto_tsquery: Tách chuỗi tìm kiếm thành các từ, nó sẽ có dạng từ 1 & từ 2..., nghĩa là chuỗi trong csdl phải chứa tất cả các từ này thì kết quả đó mới được lấy
+        // a @@ b phép so sánh giữa hai chuỗi, trong truy vấn này thì phép so sánh sẽ trả về true nếu tất cả các từ trong b có trong a
+        let existProductId = productId;
+        if (!existProductId) {
+            const products: {id: number, rank: number}[] = await prisma.$queryRaw`
+                select 
+                    p.id,
+                    ts_rank(
+                        to_tsvector('simple', unaccent(
+                            coalesce(p.name, '') || ' ' || 
+                            coalesce(p.description, '') || ' ' ||
+                            'lien than' || ' ' || coalesce(string_agg(f.fit, ' '), '') || ' ' ||
+                            'chat lieu vai lam bang' || ' ' || coalesce(string_agg(f.material, ' '), '') || ' ' ||
+                            'mac trong muc dich' || ' ' || coalesce(string_agg(f.occasion, ' '), '') || ' ' ||
+                            'mua' || ' ' || coalesce(string_agg(f.season, ' '), '') || ' ' ||
+                            'mau' || ' ' || coalesce(string_agg(f.color, ' '), '') || ' ' ||
+                            'kich thuoc size' || ' ' || coalesce(string_agg(f.size, ' '), '') || ' ' ||
+                            'style xu huong kieu loai' || ' ' || coalesce(string_agg(f.style, ' '), '') || ' ' ||
+                            'cho nguoi tuoi' || ' ' || coalesce(string_agg(f.age, ''), '')
+                        )),
+                        plainto_tsquery('simple', unaccent(${findValue}))
+                    ) as rank
+                from "Product" as p
+                left join "ProductFeature" as f on f."productId" = p.id
+                group by p.id, p.name, p.description
+                having to_tsvector('simple', unaccent(
+                    coalesce(p.name, '') || ' ' || 
+                    coalesce(p.description, '') || ' ' ||
+                    'lien than' || ' ' || coalesce(string_agg(f.fit, ' '), '') || ' ' ||
+                    'chat lieu vai lam bang' || ' ' || coalesce(string_agg(f.material, ' '), '') || ' ' ||
+                    'mac trong muc dich' || ' ' || coalesce(string_agg(f.occasion, ' '), '') || ' ' ||
+                    'mua' || ' ' || coalesce(string_agg(f.season, ' '), '') || ' ' ||
+                    'mau' || ' ' || coalesce(string_agg(f.color, ' '), '') || ' ' ||
+                    'kich thuoc size' || ' ' || coalesce(string_agg(f.size, ' '), '') || ' ' ||
+                    'style xu huong kieu loai' || ' ' || coalesce(string_agg(f.style, ' '), '') || ' ' ||
+                    'cho nguoi tuoi' || ' ' || coalesce(string_agg(f.age, ''), '')
+                )) @@ plainto_tsquery('simple', unaccent(${findValue})) and p.status = 1
+                order by rank desc;
+            `;
+            existProductId = products.map((item) => (item.id));
+        }
+
+        const size = 20;
+        const productIdInPage = existProductId.length > size ? existProductId?.slice((page - 1) * size, page * size) : existProductId
+        const now = new Date();
+        const productInPage: any[] = [];
+        for (const item of productIdInPage) {
+            const result = await prisma.product.findUnique({
+                where: {id: item},
+                select: productInfomation(now, accountId)
+            })
+            if (result) {
+                productInPage.push(result);
+            }
+        }
+        return success("Thành công", {product: productInPage, productId: existProductId})
+    } catch(e) {
+        console.log(e);
+        return serviceError;
     }
 }

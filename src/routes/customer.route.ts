@@ -21,5 +21,10 @@ customerRoute.get("/get-all-history", customerController.getAllHistoryController
 customerRoute.post("/add-cart", customerController.addCartController);
 customerRoute.post("/get-product-in-cart", customerController.getProductInCartController);
 customerRoute.post("/update-quantity-cart", customerController.updateQuantityCartController);
+customerRoute.post("/delete-product-in-cart", customerController.deleteProductInCartController);
+customerRoute.post("/get-product-detail-modal", customerController.getProductDetailModalController);
+customerRoute.post("/update-variant-in-cart", customerController.updateVariantInCartController);
+customerRoute.post("/get-address-and-fee", customerController.getAddressAndFeeController);
+customerRoute.post("/get-voucher", customerController.getVoucherController);
 
 export default customerRoute;

@@ -39,6 +39,8 @@ CREATE TABLE "public"."Address" (
     "phoneNumber" TEXT NOT NULL,
     "accountId" INTEGER NOT NULL,
     "status" INTEGER NOT NULL,
+    "longitude" DOUBLE PRECISION NOT NULL,
+    "latitude" DOUBLE PRECISION NOT NULL,
 
     CONSTRAINT "Address_pkey" PRIMARY KEY ("id")
 );
@@ -176,6 +178,7 @@ CREATE TABLE "public"."Order" (
     "orderDate" TIMESTAMP(3) NOT NULL,
     "currentStatus" INTEGER,
     "addressId" INTEGER NOT NULL,
+    "note" TEXT,
 
     CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
 );
