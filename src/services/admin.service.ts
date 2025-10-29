@@ -1,4 +1,4 @@
-import { prisma, ReturnData, OrderDash, SalesDataDash, CategoryDash, Product, Media, Variant, Promotion, Voucher } from "../interfaces/admin.interface";
+import { prisma, ReturnData, OrderDash, SalesDataDash, CategoryDash, Product, Media, Variant, Promotion, Voucher, Category } from "../interfaces/admin.interface";
 import dayjs from "dayjs";
 
 /** Dashboard */
@@ -1705,6 +1705,176 @@ const deleteVoucher = async (id: number): Promise<ReturnData> => {
     }
 };
 
+/** Quản lý danh mục */
+const getAllCategories = async (page: number, limit: number, search: string): Promise<ReturnData> => {
+    try {
+        const skip = (page - 1) * limit;
+
+        const allCategories = await prisma.categories.findMany({
+            where: { status: 1 },
+            select: {
+                id: true,
+                name: true,
+                parentId: true,
+                parent: { select: { id: true, name: true } },
+                _count: { select: { products: true } }
+            }
+        });
+
+        const categoryChildrenMap = new Map<number | null, number[]>();
+        for (const cat of allCategories) {
+            const children = categoryChildrenMap.get(cat.parentId) || [];
+            children.push(cat.id);
+            categoryChildrenMap.set(cat.parentId, children);
+        }
+
+        function countTotalProducts(categoryId: number): number {
+            const cat = allCategories.find((c: Category) => c.id === categoryId);
+            let total = cat?._count.products || 0;
+            const children = categoryChildrenMap.get(categoryId) || [];
+            for (const childId of children) total += countTotalProducts(childId);
+            return total;
+        }
+
+        const where: any = {
+            status: 1,
+            ...(search && {
+                OR: [
+                    { name: { contains: search.trim(), mode: "insensitive" } },
+                    { parent: { name: { contains: search.trim(), mode: "insensitive" } } }
+                ],
+            })
+        };
+
+        const categories = await prisma.categories.findMany({
+            where,
+            orderBy: { id: 'asc' },
+            skip,
+            take: limit,
+            select: {
+                id: true,
+                name: true,
+                parent: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                }
+            }
+        });
+
+        const results = categories.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            parent: c.parent,
+            totalProducts: countTotalProducts(c.id),
+        }));
+
+        const total = await prisma.categories.count({ where });
+
+        return {
+            message: "Lấy danh sách danh mục hàng thành công!",
+            code: 0,
+            data: { categories: results, total }
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách danh mục hàng!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const createCategory = async (data: Category): Promise<ReturnData> => {
+    try {
+        const category = await prisma.categories.create({
+            data: {
+                name: data.name,
+                parentId: Number(data.parentId),
+                status: 1,
+            }
+        });
+
+        return {
+            code: 0,
+            message: "Tạo danh mục hàng thành công!",
+            data: category,
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            code: -1,
+            message: "Lỗi server khi tạo danh mục hàng!",
+            data: false,
+        };
+    }
+};
+
+const updateCategory = async (id: number, data: Category): Promise<ReturnData> => {
+    try {
+        const category = await prisma.categories.findUnique({ where: { id: Number(id) }});
+        if (!category) {
+            return {
+                message: "Không tìm thấy danh mục hàng!",
+                code: 1,
+                data: false
+            }
+        }
+
+        const update = await prisma.categories.update({
+            where: { id: Number(id) },
+            data: {
+                name: data.name,
+                parentId: Number(data.parentId)
+            }
+        });
+        
+        return {
+            message: "Cập nhật danh mục hàng thành công!",
+            code: 0,
+            data: update
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi cập nhật danh mục hàng!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const deleteCategory = async (id: number): Promise<ReturnData> => {
+    try {
+        const category = await prisma.categories.findUnique({ where: { id: Number(id) } });
+        if (!category) {
+            return {
+                message: "Không tìm thấy mã khuyến mãi!",
+                code: 1,
+                data: false
+            }
+        }
+        const deleted = await prisma.categories.update({
+            where: { id },
+            data: { status: 0 },
+        });
+        return {
+            message: "Xóa danh mục hàng thành công!",
+            code: 0,
+            data: deleted
+        }
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi xóa danh mục hàng!",
+            code: -1,
+            data: false
+        }
+    }
+};
+
 export default {
     getRecentOrders, getSalesData, getCategoriesSale, 
     getAllProducts, getProductById, getProductCategories, createProduct, updateProduct, deleteProduct,
@@ -1713,4 +1883,5 @@ export default {
     getAllCustomers, getCustomerDetail, getCustomerOrders,
     getAllPromotions, getPromotionProducts, getPromotionById, getProductsByCategory, createPromotion, updatePromotion, deletePromotion,
     getAllVouchers, getVoucherDetail, getVoucherById, getVoucherCategories, createVoucher, updateVoucher, deleteVoucher,
+    getAllCategories, createCategory, updateCategory, deleteCategory, 
 }

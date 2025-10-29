@@ -59,4 +59,10 @@ adminRoute.post("/create-voucher", upload.none(), adminController.createVoucherC
 adminRoute.put("/update-voucher", upload.none(), adminController.updateVoucherController);
 adminRoute.delete("/delete-voucher", adminController.deleteVoucherController);
 
+/** Quản lý danh mục hàng */
+adminRoute.get("/categories", adminController.getAllCategoriesController);
+adminRoute.post("/create-category", upload.none(), adminController.createCategoryController);
+adminRoute.put("/update-category", upload.none(), adminController.updateCategoryController);
+adminRoute.delete("/delete-category", adminController.deleteCategoryController);
+
 export default adminRoute;

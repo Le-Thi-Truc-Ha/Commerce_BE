@@ -78,6 +78,7 @@ export interface Variant {
     status: number;
 }
 
+/** Quản lý chương trình ưu đãi */
 export interface Promotion {
     id: number;
     percent: number,
@@ -86,6 +87,7 @@ export interface Promotion {
     productIds: {id: number}[];
 }
 
+/** Quản lý mã giảm giá */
 export interface Voucher {
     id: number;
     code: string;
@@ -99,4 +101,11 @@ export interface Voucher {
     description: string;
     status: number;
     categoryIds: [];
+}
+
+/** Quản lý danh mục hàng */
+export interface Category {
+    id: number;
+    name: string;
+    parentId: number;
 }
