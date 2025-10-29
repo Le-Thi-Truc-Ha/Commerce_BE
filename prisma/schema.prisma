@@ -50,6 +50,8 @@ model Address {
   phoneNumber String
   accountId   Int
   status      Int
+  longitude   Float
+  latitude    Float
   defaultFor  Account? @relation("DefaultAddress")
   account     Account  @relation("ListAddresses", fields: [accountId], references: [id])
   orders      Order[]
@@ -192,6 +194,7 @@ model Order {
   orderDate            DateTime
   currentStatus        Int?
   addressId            Int
+  note                 String?
   bills                Bill[]
   account              Account?             @relation(fields: [accountId], references: [id])
   address              Address              @relation(fields: [addressId], references: [id])
