@@ -18,5 +18,6 @@ appRoute.post("/get-product-detail", appController.getProductDetailController);
 appRoute.post("/save-history", appController.saveHistoryController);
 appRoute.post("/update-cart-leave", appController.updateCartLeaveController);
 appRoute.post("/check-update-cart", appController.checkUpdateCartController);
+appRoute.post("/find-product", appController.findValueController);
 
 export default appRoute;

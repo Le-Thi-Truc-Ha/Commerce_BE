@@ -18,5 +18,6 @@ export interface CartProduct {
     size: string, 
     quantityOrder: number,
     quantity: number,
-    status: number
+    statusCart: number,
+    statusProduct: number
 }
