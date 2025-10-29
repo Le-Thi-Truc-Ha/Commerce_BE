@@ -65,4 +65,7 @@ adminRoute.post("/create-category", upload.none(), adminController.createCategor
 adminRoute.put("/update-category", upload.none(), adminController.updateCategoryController);
 adminRoute.delete("/delete-category", adminController.deleteCategoryController);
 
+/** Quản lý phản hồi */
+adminRoute.get("/feedbacks", adminController.getAllFeedbacksController);
+
 export default adminRoute;

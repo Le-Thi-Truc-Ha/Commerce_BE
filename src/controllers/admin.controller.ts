@@ -1084,6 +1084,33 @@ const deleteCategoryController = async (req: Request, res: Response): Promise<an
     }
 };
 
+/** Quản lý phản hồi */
+const getAllFeedbacksController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const search = req.query.search ? String(req.query.search) : "";
+        const star = Number(req.query.star);
+        const fromDate = req.query.fromDate ? String(req.query.fromDate) : "";
+        const toDate = req.query.toDate ? String(req.query.toDate) : "";
+
+        const result = await adminService.getAllFeedbacks(page, limit, search, star, fromDate, toDate);
+
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data,
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            message: "Lỗi server lấy danh sách phản hồi!",
+            code: -1,
+            data: false,
+        });
+    }
+};
+
 export default {
     getRecentOrdesController, getSalesDataController, getCategoriesSaleController, 
     getAllProductsController, getProductByIdController, getProductCategoriesController, createProductController, updateProductController, deleteProductController,
@@ -1092,5 +1119,5 @@ export default {
     getAllCustomersController, getCustomerDetailController, getCustomerOrdersController,
     getAllPromotionsController, getPromotionProductsController, getPromotionByIdController, getProductsByCategoryController, createPromotionController, updatePromotionController, deletePromotionController,
     getAllVouchersController, getVoucherDetailController, getVoucherByIdController, getVoucherCategoriesController, createVoucherController, updateVoucherController, deleteVoucherController,
-    getAllCategoriesController, createCategoryController, updateCategoryController, deleteCategoryController, 
+    getAllCategoriesController, createCategoryController, updateCategoryController, deleteCategoryController, getAllFeedbacksController
 }

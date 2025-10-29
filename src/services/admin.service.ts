@@ -1875,6 +1875,62 @@ const deleteCategory = async (id: number): Promise<ReturnData> => {
     }
 };
 
+/** Quản lý phản hồi */
+const getAllFeedbacks = async (page: number, limit: number, search: string, star: number, fromDate: string, toDate: string): Promise<ReturnData> => {
+    try {
+        const skip = (page - 1) * limit;
+
+        const where: any = {
+            status: 1,
+            ...(star != null && { rating: star }),
+            ...(fromDate && toDate && {
+                feeedbackDate: {
+                    gte: new Date(fromDate),
+                    lte: new Date(toDate),
+                }
+            }),
+            ...(search && {
+                OR: [
+                    { account: { fullName: { contains: search.trim(), mode: "insensitive" } } },
+                    { productVariant: { product: { name: { contains: search.trim(), mode: "insensitive" } } } }
+                ]
+            })
+        };
+
+        const feedbacks = await prisma.feedback.findMany({
+            where,
+            orderBy: { feeedbackDate: 'desc' },
+            skip,
+            take: limit,
+            include: {
+                account: { select: { fullName: true }},
+                productVariant: { 
+                    select: {
+                        color: true,
+                        size: true,
+                        product: { select: { name: true }}
+                    }
+                }
+            }
+        });
+
+        const total = await prisma.feedback.count({ where });
+
+        return {
+            message: "Lấy danh sách phản hồi thành công!",
+            code: 0,
+            data: { feedbacks, total }
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách phản hồi!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
 export default {
     getRecentOrders, getSalesData, getCategoriesSale, 
     getAllProducts, getProductById, getProductCategories, createProduct, updateProduct, deleteProduct,
@@ -1883,5 +1939,5 @@ export default {
     getAllCustomers, getCustomerDetail, getCustomerOrders,
     getAllPromotions, getPromotionProducts, getPromotionById, getProductsByCategory, createPromotion, updatePromotion, deletePromotion,
     getAllVouchers, getVoucherDetail, getVoucherById, getVoucherCategories, createVoucher, updateVoucher, deleteVoucher,
-    getAllCategories, createCategory, updateCategory, deleteCategory, 
+    getAllCategories, createCategory, updateCategory, deleteCategory, getAllFeedbacks
 }
