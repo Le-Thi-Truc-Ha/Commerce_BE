@@ -1,4 +1,4 @@
-import { prisma, ReturnData, OrderDash, SalesDataDash, CategoryDash, Product, Media, Variant, Promotion } from "../interfaces/admin.interface";
+import { prisma, ReturnData, OrderDash, SalesDataDash, CategoryDash, Product, Media, Variant, Promotion, Voucher } from "../interfaces/admin.interface";
 import dayjs from "dayjs";
 
 /** Dashboard */
@@ -1403,6 +1403,308 @@ const deletePromotion = async (id: number): Promise<ReturnData> => {
     }
 };
 
+/** Quản lý mã giảm giá */
+const getAllVouchers =  async (page: number, limit: number, search: string, fromDate: string, toDate: string, type: number): Promise<ReturnData> => {
+    try {
+        const skip = (page - 1) * limit;
+
+        const where: any = {
+            ...({ status: 1 }),
+            ...(search && {
+                OR: [
+                    { name: { contains: search, mode: "insensitive" } },
+                    { code: { contains: search, mode: "insensitive" } },
+                ],
+            }),
+            ...(fromDate && { startDate: { gte: new Date(fromDate) } }),
+            ...(toDate && { endDate: { lte: new Date(toDate) } }),
+            ...(type !== 0 && { type })
+        };
+
+        const vouchers = await prisma.voucher.findMany({
+            where,
+            orderBy: { id: 'desc' },
+            skip,
+            take: limit,
+            select: {
+                id: true,
+                code: true,
+                name: true,
+                discountPercent: true,
+                startDate: true,
+                endDate: true,
+                quantity: true,
+                type: true
+            }
+        });
+
+        const total = await prisma.voucher.count({ where });
+
+        return {
+            message: "Lấy danh sách mã khuyến mãi thành công!",
+            code: 0,
+            data: { vouchers, total }
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách mã khuyến mãi!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getVoucherDetail = async (id: number, page: number, limit: number): Promise<ReturnData> => {
+    try {
+        const skip = (page - 1) * limit;
+        const voucher = await prisma.voucher.findUnique({
+            where: { id: Number(id), status: 1 },
+            select: {
+                id: true,
+                description: true,
+                condition: true,
+                type: true,
+                voucherCategories: {
+                    skip,
+                    take: limit,
+                    select: {
+                        category: {
+                            select: {
+                                id: true,
+                                name: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        const total = await prisma.voucherCategory.count({
+            where: { voucherId: Number(id) }
+        });
+        
+        if (!voucher) {
+            return {
+                message: "Không tìm thấy mã giảm giá!",
+                code: 1,
+                data: false
+            };
+        }    
+
+        return {
+            message: "Lấy thông tin mã giảm giá thành công!",
+            code: 0,
+            data: { voucher, total }
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy thông tin mã giảm giá!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getVoucherById = async (id: number): Promise<ReturnData> => {
+    try {
+        const voucher = await prisma.voucher.findUnique({
+            where: { id: Number(id), status: 1 },
+            include: {
+                voucherCategories: {
+                    select: {
+                        category: {
+                            select: {
+                                id: true,
+                                name: true
+                            }
+                        }
+                    }
+                } 
+            }
+        });
+        
+        if (!voucher) {
+            return {
+                message: "Không tìm thấy mã giảm giá!",
+                code: 1,
+                data: false
+            };
+        }    
+
+        return {
+            message: "Lấy thông tin mã giảm giá thành công!",
+            code: 0,
+            data: voucher
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy thông tin mã giảm giá!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getVoucherCategories = async (search: string): Promise<ReturnData> => {
+    try {
+        const where = search
+            ? { name: { contains: search, mode:"insensitive" }, status: 1 }
+            : { status: 1 };
+
+        const categories = await prisma.categories.findMany({
+            where,
+            select: {
+                id: true,
+                name: true
+            }
+        });
+
+        return {
+            message: "Lấy danh sách danh mục thành công!",
+            code: 0,
+            data: categories
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách danh mục!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const createVoucher = async (data: Voucher): Promise<ReturnData> => {
+    try {
+        const voucher = await prisma.voucher.create({
+            data: {
+                code: data.code,
+                name: data.name,
+                discountPercent: Number(data.discountPercent),
+                startDate: new Date(data.startDate),
+                endDate: new Date(data.endDate),
+                quantity: Number(data.quantity),
+                condition: Number(data.condition),
+                type: Number(data.type),
+                description: data.description,
+                status: 1,
+            }
+        });
+        const categoryIds = data.categoryIds;
+        if (categoryIds) {
+            const ids = Array.isArray(categoryIds) ? categoryIds : [categoryIds];
+            await prisma.voucherCategory.createMany({
+                data: ids.map((catId: any) => ({
+                    voucherId: voucher.id,
+                    categoryId: Number(catId),
+                }))
+            });
+        }
+
+        return {
+            code: 0,
+            message: "Tạo mã khuyến mãi thành công!",
+            data: voucher,
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            code: -1,
+            message: "Lỗi server khi tạo mã khuyến mãi!",
+            data: false,
+        };
+    }
+};
+
+const updateVoucher = async (id: number, data: Voucher): Promise<ReturnData> => {
+    try {
+        const voucher = await prisma.voucher.findUnique({ where: { id: Number(id) }});
+        if (!voucher) {
+            return {
+                message: "Không tìm thấy mã khuyến mãi!",
+                code: 1,
+                data: false
+            }
+        }
+
+        const update = await prisma.voucher.update({
+            where: { id: Number(id) },
+            data: {
+                code: data.code,
+                name: data.name,
+                discountPercent: Number(data.discountPercent),
+                startDate: new Date(data.startDate),
+                endDate: new Date(data.endDate),
+                quantity: Number(data.quantity),
+                condition: Number(data.condition),
+                type: Number(data.type),
+                description: data.description
+            }
+        });
+
+        const categoryIds = data.categoryIds;
+            if (categoryIds) {
+            const ids = Array.isArray(categoryIds) ? categoryIds : [categoryIds];
+
+            await prisma.voucherCategory.deleteMany({
+                where: { voucherId: Number(id) }
+            });
+
+            await prisma.voucherCategory.createMany({
+                data: ids.map((catId: any) => ({
+                    voucherId: Number(id),
+                    categoryId: Number(catId)
+                })),
+            });
+        }
+        
+        return {
+            message: "Cập nhật mã khuyến mãi thành công!",
+            code: 0,
+            data: update
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi cập nhật mã khuyến mãi!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const deleteVoucher = async (id: number): Promise<ReturnData> => {
+    try {
+        const voucher = await prisma.voucher.findUnique({ where: { id: Number(id) } });
+        if (!voucher) {
+            return {
+                message: "Không tìm thấy mã khuyến mãi!",
+                code: 1,
+                data: false
+            }
+        }
+        const deleted = await prisma.voucher.update({
+            where: { id },
+            data: { status: 0 },
+        });
+        return {
+            message: "Xóa mã khuyến mãi thành công!",
+            code: 0,
+            data: deleted
+        }
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi xóa mã khuyến mãi!",
+            code: -1,
+            data: false
+        }
+    }
+};
+
 export default {
     getRecentOrders, getSalesData, getCategoriesSale, 
     getAllProducts, getProductById, getProductCategories, createProduct, updateProduct, deleteProduct,
@@ -1410,4 +1712,5 @@ export default {
     getStatus, getAllOrders, getBill,
     getAllCustomers, getCustomerDetail, getCustomerOrders,
     getAllPromotions, getPromotionProducts, getPromotionById, getProductsByCategory, createPromotion, updatePromotion, deletePromotion,
+    getAllVouchers, getVoucherDetail, getVoucherById, getVoucherCategories, createVoucher, updateVoucher, deleteVoucher,
 }

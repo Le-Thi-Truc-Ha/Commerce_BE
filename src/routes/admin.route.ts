@@ -50,4 +50,13 @@ adminRoute.post("/create-promotion", upload.none(), adminController.createPromot
 adminRoute.put("/update-promotion", upload.none(), adminController.updatePromotionController);
 adminRoute.delete("/delete-promotion", adminController.deletePromotionController);
 
+/** Quản lý mã khuyến mãi */
+adminRoute.get("/vouchers", adminController.getAllVouchersController);
+adminRoute.get("/voucher-detail", adminController.getVoucherDetailController);
+adminRoute.get("/voucher-id", adminController.getVoucherByIdController);
+adminRoute.get("/voucher-categories", adminController.getVoucherCategoriesController);
+adminRoute.post("/create-voucher", upload.none(), adminController.createVoucherController);
+adminRoute.put("/update-voucher", upload.none(), adminController.updateVoucherController);
+adminRoute.delete("/delete-voucher", adminController.deleteVoucherController);
+
 export default adminRoute;

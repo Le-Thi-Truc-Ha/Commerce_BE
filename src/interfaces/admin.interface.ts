@@ -85,3 +85,18 @@ export interface Promotion {
     endDate: string,
     productIds: {id: number}[];
 }
+
+export interface Voucher {
+    id: number;
+    code: string;
+    name: string;
+    discountPercent: number;
+    startDate: string;
+    endDate: string;
+    quantity: number;
+    condition: number;
+    type: number;
+    description: string;
+    status: number;
+    categoryIds: [];
+}

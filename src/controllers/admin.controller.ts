@@ -776,6 +776,201 @@ const deletePromotionController = async (req: Request, res: Response): Promise<a
     }
 };
 
+/** Quản lý mã khuyến mãi */
+const getAllVouchersController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const search = req.query.search ? String(req.query.search) : "";
+        const fromDate = req.query.fromDate ? String(req.query.fromDate) : "";
+        const toDate = req.query.toDate ? String(req.query.toDate) : "";
+        const type = Number(req.query.type);
+
+        const result = await adminService.getAllVouchers(page, limit, search, fromDate, toDate, type);
+
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data,
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            message: "Lỗi server lấy danh sách mã khuyến mãi!",
+            code: -1,
+            data: false,
+        });
+    }
+};
+
+const getVoucherDetailController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.id);
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 5;
+        if (isNaN(id) || id <= 0) {
+            return res.status(400).json({
+                message: "ID mã khuyến mãi không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result = await adminService.getVoucherDetail(id, page, limit);
+
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data,
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            message: "Lỗi server thông tin mã khuyến mãi!",
+            code: -1,
+            data: false,
+        });
+    }
+};
+
+const getVoucherByIdController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.id);
+        if (isNaN(id) || id <= 0) {
+            return res.status(400).json({
+                message: "ID mã giảm giá không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result: ReturnData = await adminService.getVoucherById(id);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi lấy thông tin mã giảm giá!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const getVoucherCategoriesController = async(req: Request, res: Response): Promise<any> => {
+    try {
+        const search = req.query.search ? String(req.query.search) : "";
+        const result = await adminService.getVoucherCategories(search);
+
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data,
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            message: "Lỗi server danh sách danh mục!",
+            code: -1,
+            data: false,
+        });
+    }
+};
+
+const createVoucherController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const data = req.body;
+        
+        if (!data.code || !data.name || !data.discountPercent || 
+            !data.startDate || !data.endDate || !data.quantity || !data.type) {
+            return res.status(400).json({
+                message: "Thiếu dữ liệu cần thiết!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result: ReturnData = await adminService.createVoucher(data);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi tạo mã khuyến mãi!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const updateVoucherController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const data = req.body;
+        if (isNaN(data.id) || data.id <= 0) {
+            return res.status(400).json({
+                message: "ID mã khuyến mãi không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+        if (!data.code || !data.name || !data.discountPercent || 
+            !data.startDate || !data.endDate || !data.quantity || !data.type) {
+            return res.status(400).json({
+                message: "Thiếu dữ liệu cần thiết!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result: ReturnData = await adminService.updateVoucher(data.id, data);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi cập nhật mã khuyến mãi!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const deleteVoucherController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.id);
+        if (isNaN(id) || id <= 0) {
+            return res.status(400).json({
+                message: "ID mã khuyến mãi không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result = await adminService.deleteVoucher(id);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi xóa mã khuyến mãi!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
 export default {
     getRecentOrdesController, getSalesDataController, getCategoriesSaleController, 
     getAllProductsController, getProductByIdController, getProductCategoriesController, createProductController, updateProductController, deleteProductController,
@@ -783,4 +978,5 @@ export default {
     getStatusController, getAllOrdersController, getBillController,
     getAllCustomersController, getCustomerDetailController, getCustomerOrdersController,
     getAllPromotionsController, getPromotionProductsController, getPromotionByIdController, getProductsByCategoryController, createPromotionController, updatePromotionController, deletePromotionController,
+    getAllVouchersController, getVoucherDetailController, getVoucherByIdController, getVoucherCategoriesController, createVoucherController, updateVoucherController, deleteVoucherController,
 }
