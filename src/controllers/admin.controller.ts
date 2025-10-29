@@ -575,10 +575,212 @@ const getCustomerOrdersController = async (req: Request, res: Response): Promise
     }
 };
 
+/** Quản lý chương trình ưu đãi */
+const getAllPromotionsController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const search = req.query.search ? String(req.query.search) : "";
+        const fromDate = req.query.fromDate ? String(req.query.fromDate) : "";
+        const toDate = req.query.toDate ? String(req.query.toDate) : "";
+
+        const result = await adminService.getAllPromotions(page, limit, search, fromDate, toDate);
+
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data,
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            message: "Lỗi server lấy danh sách chương trình ưu đãi!",
+            code: -1,
+            data: false,
+        });
+    }
+};
+
+const getPromotionProductsController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.promotionId);
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const search = req.query.search ? String(req.query.search) : "";
+        if (isNaN(id) || id <= 0) {
+            return res.status(400).json({
+                message: "ID ưu đãi không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result = await adminService.getPromotionProducts(id, page, limit, search);
+
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data,
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            message: "Lỗi server lấy danh sách sản phẩm của ưu đãi!",
+            code: -1,
+            data: false,
+        });
+    }
+};
+
+const getPromotionByIdController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.id);
+        if (isNaN(id) || id <= 0) {
+            return res.status(400).json({
+                message: "ID ưu đãi không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result: ReturnData = await adminService.getPromotionById(id);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi lấy thông tin ưu đãi!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const getProductsByCategoryController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.categoryId);
+        const search = req.query.search ? String(req.query.search) : "";
+        if (isNaN(id) || id <= 0) {
+            return res.status(400).json({
+                message: "ID danh mục không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result: ReturnData = await adminService.getProductsByCategory(id, search);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi lấy danh sách sản phẩm theo danh mục!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const createPromotionController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const data = req.body;
+        
+        if (!data.percent || !data.startDate || !data.endDate) {
+            return res.status(400).json({
+                message: "Thiếu dữ liệu cần thiết!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result: ReturnData = await adminService.createPromotion(data);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi tạo chương trình ưu đãi!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const updatePromotionController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const data = req.body;
+        if (isNaN(data.id) || data.id <= 0) {
+            return res.status(400).json({
+                message: "ID chương trình ưu đãi không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+        if (!data.percent || !data.startDate || !data.endDate) {
+            return res.status(400).json({
+                message: "Thiếu dữ liệu cần thiết!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result: ReturnData = await adminService.updatePromotion(data.id, data);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi cập nhật chương trình ưu đãi!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const deletePromotionController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.id);
+        if (isNaN(id) || id <= 0) {
+            return res.status(400).json({
+                message: "ID chương trình ưu đãi không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result = await adminService.deletePromotion(id);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi xóa chương trình ưu đãi!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
 export default {
     getRecentOrdesController, getSalesDataController, getCategoriesSaleController, 
     getAllProductsController, getProductByIdController, getProductCategoriesController, createProductController, updateProductController, deleteProductController,
     getProductDetailController, getAllVariantsController, getVariantByIdController, createVariantController, updateVariantController, deleteVariantController,
     getStatusController, getAllOrdersController, getBillController,
     getAllCustomersController, getCustomerDetailController, getCustomerOrdersController,
+    getAllPromotionsController, getPromotionProductsController, getPromotionByIdController, getProductsByCategoryController, createPromotionController, updatePromotionController, deletePromotionController,
 }

@@ -1,4 +1,4 @@
-import { prisma, ReturnData, OrderDash, SalesDataDash, CategoryDash, Product, Media, Variant } from "../interfaces/admin.interface";
+import { prisma, ReturnData, OrderDash, SalesDataDash, CategoryDash, Product, Media, Variant, Promotion } from "../interfaces/admin.interface";
 import dayjs from "dayjs";
 
 /** Dashboard */
@@ -1057,10 +1057,357 @@ const getCustomerOrders = async (id: number, page: number, limit: number): Promi
     }
 };
 
+/** Quản lý chương trình ưu đãi */
+const getAllPromotions = async (page: number, limit: number, search: string, fromDate: string, toDate: string ): Promise<ReturnData> => {
+    try {
+        const skip = (page - 1) * limit;
+
+        const where: any = { status: 1};
+
+        if (search && search.trim() !== "") {
+            where.productPromotions = {
+                some: {
+                    product: {
+                        name: {
+                            contains: search.trim(),
+                            mode: 'insensitive',
+                        }
+                    }
+                }
+            };
+        }
+
+        if (fromDate && toDate) {
+            where.startDate = { gte: new Date(fromDate) };
+            where.endDate = { lte: new Date(toDate) };
+        } else if (fromDate) {
+            where.startDate = { gte: new Date(fromDate) };
+        } else if (toDate) {
+            where.endDate = { lte: new Date(toDate) };
+        }
+
+        const promotions = await prisma.promotion.findMany({
+            where,
+            orderBy: { startDate: 'desc' },
+            skip,
+            take: limit,
+            select: {
+                id: true,
+                percent: true,
+                endDate: true,
+                startDate: true,
+                productPromotions: {
+                    select: {
+                        product: {
+                            select: {
+                                id: true,
+                                name: true,
+                                productVariants: {
+                                    select: { quantity: true }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        const total = await prisma.promotion.count({ where });
+
+        return {
+            message: "Lấy danh sách chương trình ưu đãi thành công!",
+            code: 0,
+            data: { promotions, total }
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách chương trình ưu đãi!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getPromotionProducts = async (id: number, page: number = 1, limit: number = 5, search: String): Promise<ReturnData> => {
+    try {
+        const promotion = await prisma.promotion.findUnique({ where: {id: Number(id)} });
+        if (!promotion) {
+            return {
+                message: "Không tìm thấy chương trình ưu đãi!",
+                code: 1,
+                data: false
+            };
+        }
+
+        const where: any = {
+            promotionId: id,
+            product: {
+                OR: [
+                    { name: { contains: search, mode: "insensitive" } },
+                    { category: { name: { contains: search, mode: "insensitive" } } },
+                ],
+            },
+        };
+
+        const skip = (page - 1) * limit;
+        const products = await prisma.productPromotion.findMany({
+            where,
+            orderBy: { id: "asc" },
+            skip,
+            take: limit,
+            select: {
+                product: {
+                    select: { 
+                        id: true,
+                        name: true,
+                        category: true 
+                    },
+                },
+            }
+        });
+        
+        const total = await prisma.productPromotion.count({ where });
+
+        return {
+            message: "Lấy danh sách sản phẩm của chương trình ưu đãi thành công!",
+            code: 0,
+            data: { products, total }
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi danh sách sản phẩm của chương trình ưu đãi thành công!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getPromotionById = async (id: number): Promise<ReturnData> => {
+    try {
+        const promotion = await prisma.promotion.findUnique({
+            where: { id: Number(id), status: 1 },
+            include: {
+                productPromotions: {
+                    include: {
+                        product: {
+                            select: {
+                                id: true,
+                                name: true,
+                                category: {
+                                    select: { id: true, name: true }
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        if (!promotion) {
+            return {
+                message: "Không tìm thấy chương trình ưu đãi!",
+                code: 1,
+                data: false
+            };
+        }    
+
+        return {
+            message: "Lấy thông tin chương trình ưu đãi thành công!",
+            code: 0,
+            data: promotion
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy thông tin chương trình ưu đãi!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getProductsByCategory = async (id: number, search: string): Promise<ReturnData> => {
+    try {
+        const category = await prisma.categories.findUnique({ where: { id: Number(id) }});
+        if (!category) {
+            return {
+                message: "Không tìm thấy danh mục!",
+                code: 1,
+                data: false
+            };
+        }
+
+        const getAllChildCategoryIds = async (parentId: number): Promise<number[]> => {
+            const children = await prisma.categories.findMany({
+                where: { parentId },
+                select: { id: true }
+            });
+
+            if (!children.length) return [parentId];
+
+            const subIds = await Promise.all(children.map((c: any) => getAllChildCategoryIds(c.id)));
+            return [parentId, ...subIds.flat()];
+        };
+
+        const allCategoryIds = await getAllChildCategoryIds(Number(id));
+
+        const products = await prisma.product.findMany({
+            where: { 
+                categoryId: { in: allCategoryIds }, 
+                status: 1, 
+                ...(search?.trim() && {
+                    name: { contains: search.trim(), mode: "insensitive" }
+                })
+            },
+            select: {
+                id: true,
+                name: true,
+                category: {
+                    select: { id: true, name: true }
+                }
+            }
+        });   
+        
+        const result = products.map((p: any) => ({ product: p }));
+
+        return {
+            message: "Lấy danh sách sản phẩm theo danh mục thành công!",
+            code: 0,
+            data: result
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách sản phẩm theo danh mục!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const createPromotion = async (data: Promotion): Promise<ReturnData> => {
+    try {
+        const promotion = await prisma.promotion.create({
+            data: {
+                percent: Number(data.percent),
+                startDate: new Date(data.startDate),
+                endDate: new Date(data.endDate),
+                status: 1,
+            }
+        });
+        const productIds = data.productIds;
+        if (productIds) {
+            const ids = Array.isArray(productIds) ? productIds : [productIds];
+            await prisma.productPromotion.createMany({
+                data: ids.map((proId: any) => ({
+                    promotionId: Number(promotion.id),
+                    productId: Number(proId),
+                }))
+            });
+        }
+
+        return {
+            code: 0,
+            message: "Tạo chương trình ưu đãi thành công!",
+            data: promotion,
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            code: -1,
+            message: "Lỗi server khi tạo chương trình ưu đãi!",
+            data: false,
+        };
+    }
+};
+
+const updatePromotion = async (id: number, data: Promotion): Promise<ReturnData> => {
+    try {
+        const promotion = await prisma.promotion.findUnique({ where: { id: Number(id) }});
+        if (!promotion) {
+            return {
+                message: "Không tìm thấy chương trình ưu đãi!",
+                code: 1,
+                data: false
+            }
+        }
+
+        const update = await prisma.promotion.update({
+            where: { id: Number(id) },
+            data: {
+                percent: Number(data.percent),
+                startDate: new Date(data.startDate),
+                endDate: new Date(data.endDate)
+            }
+        });
+        const productIds = data.productIds;
+        if (productIds) {
+            const ids = Array.isArray(productIds) ? productIds : [productIds];
+
+            await prisma.productPromotion.deleteMany({
+                where: { promotionId: Number(id) }
+            });
+
+            await prisma.productPromotion.createMany({
+                data: ids.map((proId: any) => ({
+                    promotionId: Number(id),
+                    productId: Number(proId)
+                })),
+            });
+        }
+        
+        return {
+            message: "Cập nhật chương trình ưu đãi thành công!",
+            code: 0,
+            data: update
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi cập nhật chương trình ưu đãi!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const deletePromotion = async (id: number): Promise<ReturnData> => {
+    try {
+        const promotion = await prisma.promotion.findUnique({ where: { id: Number(id) } });
+        if (!promotion) {
+            return {
+                message: "Không tìm thấy chương trình ưu đãi!",
+                code: 1,
+                data: false
+            }
+        }
+        const deleted = await prisma.promotion.update({
+            where: { id },
+            data: { status: 0 },
+        });
+
+        return {
+            message: "Xóa chương trình ưu đãi thành công!",
+            code: 0,
+            data: deleted
+        }
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi xóa chương trình ưu đãi!",
+            code: -1,
+            data: false
+        }
+    }
+};
+
 export default {
     getRecentOrders, getSalesData, getCategoriesSale, 
     getAllProducts, getProductById, getProductCategories, createProduct, updateProduct, deleteProduct,
     getProdctDetail, getAllVariants, getVariantById, createVariant, updateVariant, deleteVariant,
     getStatus, getAllOrders, getBill,
     getAllCustomers, getCustomerDetail, getCustomerOrders,
+    getAllPromotions, getPromotionProducts, getPromotionById, getProductsByCategory, createPromotion, updatePromotion, deletePromotion,
 }

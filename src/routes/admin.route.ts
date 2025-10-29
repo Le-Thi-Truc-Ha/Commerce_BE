@@ -41,4 +41,13 @@ adminRoute.get("/customers", adminController.getAllCustomersController);
 adminRoute.get("/customer-detail", adminController.getCustomerDetailController);
 adminRoute.get("/customer-orders", adminController.getCustomerOrdersController);
 
+/** Quản lý chương trình ưu đãi */
+adminRoute.get("/promotions", adminController.getAllPromotionsController);
+adminRoute.get("/promotion-products", adminController.getPromotionProductsController);
+adminRoute.get("/promotion-id", adminController.getPromotionByIdController);
+adminRoute.get("/promotion-products-category", adminController.getProductsByCategoryController);
+adminRoute.post("/create-promotion", upload.none(), adminController.createPromotionController);
+adminRoute.put("/update-promotion", upload.none(), adminController.updatePromotionController);
+adminRoute.delete("/delete-promotion", adminController.deletePromotionController);
+
 export default adminRoute;
