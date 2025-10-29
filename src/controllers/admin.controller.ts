@@ -421,8 +421,74 @@ const deleteVariantController = async (req: Request, res: Response): Promise<any
     }
 };
 
+/** Quản lý đơn hàng */
+const getStatusController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const result: ReturnData = await adminService.getStatus();
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server lấy danh sách trạng thái đơn hàng!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const getAllOrdersController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const search = req.query.search ? String(req.query.search) : "";
+        const fromDate = req.query.fromDate ? String(req.query.fromDate) : "";
+        const toDate = req.query.toDate ? String(req.query.toDate) : "";
+        const status = req.query.status ? Number(req.query.status) : -1;
+
+        const result = await adminService.getAllOrders(page, limit, search, fromDate, toDate, status);
+
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data,
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            message: "Lỗi server lấy danh sách đơn hàng!",
+            code: -1,
+            data: false,
+        });
+    }
+};
+
+const getBillController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const orderId = req.query.id;
+        const result = await adminService.getBill(Number(orderId));
+
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data,
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            message: "Lỗi server lấy thông tin hóa đơn!",
+            code: -1,
+            data: false,
+        });
+    }
+};
+
 export default {
     getRecentOrdesController, getSalesDataController, getCategoriesSaleController, 
     getAllProductsController, getProductByIdController, getProductCategoriesController, createProductController, updateProductController, deleteProductController,
     getProductDetailController, getAllVariantsController, getVariantByIdController, createVariantController, updateVariantController, deleteVariantController,
+    getStatusController, getAllOrdersController, getBillController,
 }

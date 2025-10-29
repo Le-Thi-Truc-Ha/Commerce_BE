@@ -31,4 +31,9 @@ adminRoute.post("/create-variant", upload.none(), adminController.createVariantC
 adminRoute.put("/update-variant", upload.none(), adminController.updateVariantController);
 adminRoute.delete("/delete-variant", adminController.deleteVariantController);
 
+/** Quản lý đơn hàng */
+adminRoute.get("/status", adminController.getStatusController);
+adminRoute.get("/orders", adminController.getAllOrdersController);
+adminRoute.get("/bill", adminController.getBillController);
+
 export default adminRoute;

@@ -1,4 +1,5 @@
 import { prisma, ReturnData, OrderDash, SalesDataDash, CategoryDash, Product, Media, Variant } from "../interfaces/admin.interface";
+import dayjs from "dayjs";
 
 /** Dashboard */
 const getRecentOrders = async (): Promise<ReturnData> => {
@@ -645,8 +646,238 @@ const deleteVariant = async (id: number): Promise<ReturnData> => {
     }
 };
 
+/** Quản lý đơn hàng */
+const getStatus = async (): Promise<ReturnData> => {
+    try {
+        const status = await prisma.orderStatus.findMany({ where: {} });
+        return {
+            message: "Lấy danh sách trạng thái đơn hàng thành công!",
+            code: 0,
+            data: status
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách trạng thái đơn hàng!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getAllOrders = async (page: number, limit: number, search: string, fromDate: string, toDate: string, status: number): Promise<ReturnData> => {
+    try {
+        const where: any ={};
+        if (search && search !== "undefined" && search !== "\"\"" && search !== "") {
+            if (!Number.isNaN(Number(search))) {
+                where.id = Number(search);
+            } else {
+                where.account = {
+                    fullName: {
+                        contains: search,
+                        mode: "insensitive",
+                    },
+                };
+            }
+        }
+
+        if (fromDate && fromDate !== "undefined" && dayjs(fromDate).isValid()) {
+            where.orderDate = { ...(where.orderDate || {}), gte: dayjs(fromDate).startOf("day").toDate() };
+        }
+
+        if (toDate && toDate !== "undefined" && dayjs(toDate).isValid()) {
+            where.orderDate = { ...(where.orderDate || {}), lte: dayjs(toDate).endOf("day").toDate() };
+        }
+
+        if (status !== undefined && status !== -1) {
+            where.currentStatus = status;
+        }
+
+        const total = await prisma.order.count({ where });
+
+        const orders = await prisma.order.findMany({
+            where,
+            skip: (page - 1) * limit,
+            take: limit,
+            orderBy: { orderDate: "desc" },
+            select: {
+                id: true,
+                total: true,
+                orderDate: true,
+                orderStatus: true,
+                address: { select: { address: true }},
+                account: { select: { fullName: true }}
+            }
+        });
+        return {
+            message: "Lấy danh sách đơn hàng thành công!",
+            code: 0,
+            data: { orders, total }
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách đơn hàng!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getBill = async ( orderId: number ): Promise<ReturnData> => {
+    try {
+        const bill = await prisma.order.findUnique({
+            where: { id: Number(orderId)},
+            select: {
+                id: true,
+                total: true,
+                orderDate: true,
+                orderStatus: { select: { id: true, name: true }},
+                address: { select: { address: true, name: true }},
+                orderVouchers: {
+                    select: {
+                        voucher: {
+                            select: { 
+                                code: true,
+                                type: true, 
+                                discountPercent: true 
+                            }
+                        }
+                    }
+                },
+                orderDetails: {
+                    select: {
+                        id: true,
+                        quantity: true,
+                        productVariant: {
+                            select: {
+                                price: true,
+                                size: true,
+                                color: true,
+                                product: { 
+                                    select: { 
+                                        name: true,
+                                        productPromotions: { 
+                                            select: { 
+                                                promotion: { 
+                                                    select: { 
+                                                        percent: true,
+                                                        endDate: true,
+                                                        startDate: true,
+                                                        status: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        voucherOrderDetails: {
+                            select: {
+                                voucherCategory: {
+                                    select: {
+                                        voucher: { 
+                                            select: { 
+                                                code: true,
+                                                type: true, 
+                                                discountPercent: true 
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                bills: {
+                    select: {
+                        id: true,
+                        paymentMethod: true,
+                        shippingFee: { select: { cost: true }},
+                        total: true,
+                        invoiceTime: true,
+                        paymentTime: true
+                    }
+                }
+            }
+        });
+
+        if (!bill) {
+            return {
+                message: "Không tìm thấy đơn hàng",
+                code: 1,
+                data: null
+            };
+        }
+
+        let totalVoucher = 0;
+
+        // Voucher áp dụng trên hóa đơn hoặc phí ship
+        for (const vo of bill.orderVouchers) {
+            if (!vo.voucher) continue;
+
+            if (vo.voucher.type === 1) {
+                // Voucher áp dụng toàn hóa đơn
+                totalVoucher += (vo.voucher.discountPercent / 100) * bill.total;
+            } else if (vo.voucher.type === 2) {
+                // Voucher áp dụng phí ship
+                totalVoucher += (vo.voucher.discountPercent / 100) * (bill.bills[0]?.shippingFee?.cost ?? 0);
+            }
+        }
+
+        // Voucher áp dụng cho sản phẩm (VoucherOrderDetail)
+        const orderDetailsWithPrice = bill.orderDetails.map((od: any) => {
+            let finalPrice = od.productVariant?.price ?? 0;
+            const promotions = od.productVariant?.product?.productPromotions ?? [];
+
+            // Áp dụng promotion hợp lệ
+            for (const pp of promotions) {
+                const promo = pp.promotion;
+                if (
+                    promo &&
+                    promo.status === 1 &&
+                    bill.orderDate >= promo.startDate &&
+                    bill.orderDate <= promo.endDate
+                ) {
+                    finalPrice -= (promo.percent / 100) * finalPrice;
+                }
+            }
+
+            // Áp dụng voucher theo danh mục
+            for (const vod of od.voucherOrderDetails) {
+                const voucher = vod.voucherCategory?.voucher;
+                if (voucher?.type === 1) {
+                    totalVoucher += (voucher.discountPercent / 100) * finalPrice;
+                }
+            }
+
+            return {
+                ...od,
+                priceAfterPromotion: Math.round(finalPrice)
+            };
+        });
+
+        const result = { ...bill, totalVoucher, orderDetails: orderDetailsWithPrice };
+
+        return {
+            message: "Lấy thông tin hóa đơn thành công!",
+            code: 0,
+            data: result
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy thông tin hóa đơn!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
 export default {
     getRecentOrders, getSalesData, getCategoriesSale, 
     getAllProducts, getProductById, getProductCategories, createProduct, updateProduct, deleteProduct,
     getProdctDetail, getAllVariants, getVariantById, createVariant, updateVariant, deleteVariant,
+    getStatus, getAllOrders, getBill,
 }
