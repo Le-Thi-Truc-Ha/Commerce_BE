@@ -257,7 +257,172 @@ const deleteProductController = async (req: Request, res: Response): Promise<any
     }
 };
 
+// Variants
+const getProductDetailController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.id);
+        const result: ReturnData = await adminService.getProdctDetail(id);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server thông tin chi tiết sản phẩm!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const getAllVariantsController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.id);
+        const page = Number(req.query.page);
+        const limit = Number(req.query.limit)
+        const result: ReturnData = await adminService.getAllVariants(id, page, limit);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server thông tin chi tiết sản phẩm!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const getVariantByIdController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.id);
+        if (isNaN(id) || id <= 0) {
+            return res.status(400).json({
+                message: "ID biến thể không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result: ReturnData = await adminService.getVariantById(id);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi lấy thông tin biến thể!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const createVariantController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const data = req.body;
+        if (isNaN(data.productId) || data.productId <= 0) {
+            return res.status(400).json({
+                message: "ID sản phẩm không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+
+        if (!data.size || !data.color || !data.price || !data.quantity) {
+            return res.status(400).json({
+                message: "Thiếu dữ liệu cần thiết!",
+                code: 2,
+                data: false
+            });
+        }
+        const result: ReturnData = await adminService.createVariant(data, data.productId);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi tạo biến thể!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const updateVariantController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const data = req.body;
+        if (isNaN(data.id) || data.id <= 0) {
+            return res.status(400).json({
+                message: "ID biến thể không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+
+        if (!data.size || !data.color || !data.price || !data.quantity) {
+            return res.status(400).json({
+                message: "Thiếu dữ liệu cần thiết!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result: ReturnData = await adminService.updateVariant(data);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi cập nhật biến thể!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
+const deleteVariantController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const id = Number(req.query.id);
+        if (isNaN(id) || id <= 0) {
+            return res.status(400).json({
+                message: "ID biến thể không hợp lệ!",
+                code: 2,
+                data: false
+            });
+        }
+
+        const result = await adminService.deleteVariant(id);
+        return res.status(200).json({
+            message: result.message,
+            code: result.code,
+            data: result.data
+        });
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
+            message: "Lỗi server khi xóa biến thể!",
+            code: -1,
+            data: false
+        });
+    }
+};
+
 export default {
     getRecentOrdesController, getSalesDataController, getCategoriesSaleController, 
     getAllProductsController, getProductByIdController, getProductCategoriesController, createProductController, updateProductController, deleteProductController,
+    getProductDetailController, getAllVariantsController, getVariantByIdController, createVariantController, updateVariantController, deleteVariantController,
 }

@@ -1,4 +1,4 @@
-import { prisma, ReturnData, OrderDash, SalesDataDash, CategoryDash, Product, Media } from "../interfaces/admin.interface";
+import { prisma, ReturnData, OrderDash, SalesDataDash, CategoryDash, Product, Media, Variant } from "../interfaces/admin.interface";
 
 /** Dashboard */
 const getRecentOrders = async (): Promise<ReturnData> => {
@@ -428,7 +428,225 @@ const deleteProduct = async (id: number): Promise<ReturnData> => {
     }
 };
 
+// Variants
+const getProdctDetail = async (id: number): Promise<ReturnData> => {
+    try {
+        const product = await prisma.product.findUnique({
+            where: { id },
+            select: {
+                name: true,
+                description: true,
+                saleFigure: true,
+                rateStar: true,
+                medias: true,
+                category: { select: { name: true }}
+            }
+        });
+
+        if (!product) {
+            return {
+                message: "Không tìm thấy san phẩm!",
+                code: 1,
+                data: false
+            };
+        }
+
+        return {
+            message: "Lấy thông tin sản phẩm thành công!",
+            code: 0,
+            data: product
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy thông tin chi tiết sản phẩm!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getAllVariants = async (id: number, page: number = 1, limit: number = 5): Promise<ReturnData> => {
+    try {
+        const product = await prisma.product.findUnique({ where: {id: Number(id)} });
+        if (!product) {
+            return {
+                message: "Không tìm thấy sản phẩm!",
+                code: 1,
+                data: false
+            };
+        }
+
+        const skip = (page - 1) * limit;
+        const [ variants, total ] = await Promise.all([
+            prisma.productVariant.findMany({
+                where: { productId: id, status: { not: 0 } },
+                orderBy: { id: "asc" },
+                skip,
+                take: limit
+            }),
+            prisma.productVariant.count({ where: { productId: id, status: { not: 0 } }})
+        ]);
+        
+        return {
+            message: "Lấy danh sách biến thể thành công!",
+            code: 0,
+            data: { variants, total }
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách biến thể!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getVariantById = async (id: number): Promise<ReturnData> => {
+    try {
+        const variant = await prisma.productVariant.findUnique({
+            where: {id}
+        });
+        if (!variant) {
+            return {
+                message: "Không tìm thấy biến thể!",
+                code: 1,
+                data: false
+            };
+        }
+
+        return {
+            code: 0,
+            message: "Lấy thông tin biến thể thành công!",
+            data: variant,
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            code: -1,
+            message: "Lỗi server khi lấy thông tin biến thể!",
+            data: false,
+        };
+    }
+};
+
+const createVariant = async (data: Variant, productId: number): Promise<ReturnData> => {
+    try {
+        const product = await prisma.product.findUnique({where: {id: Number(productId)}});
+        if (!product) {
+            return {
+                message: "Không tìm thấy sản phẩm!",
+                code: 1,
+                data: false
+            };
+        }
+
+        const variant = await prisma.productVariant.create({
+            data: {
+                productId: Number(productId),
+                size: data.size,
+                color: data.color,
+                price: Number(data.price),
+                quantity: Number(data.quantity),
+                status: 1
+            }
+        });
+
+        return {
+            code: 0,
+            message: "Tạo biến thể thành công!",
+            data: variant,
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            code: -1,
+            message: "Lỗi server khi tạo biến thể!",
+            data: false,
+        };
+    }
+};
+
+const updateVariant = async (data: Variant): Promise<ReturnData> => {
+    try {
+        const variant = await prisma.productVariant.update({
+            where: { id: Number(data.id) },
+            data: {
+                size: data.size,
+                color: data.color,
+                price: Number(data.price),
+                quantity: Number(data.quantity),
+                status: 1
+            }
+        });
+        if (!variant) {
+            return {
+                message: "Không tìm thấy biến thể!",
+                code: 1,
+                data: false
+            };
+        }
+
+        return {
+            code: 0,
+            message: "Cập nhật biến thể thành công!",
+            data: variant,
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            code: -1,
+            message: "Lỗi server khi cập nhật biến thể!",
+            data: false,
+        };
+    }
+};
+
+const deleteVariant = async (id: number): Promise<ReturnData> => {
+    try {
+        const variant = await prisma.productVariant.update({
+            where: { id },
+            data: {
+                status: 0
+            }
+        });
+        if (!variant) {
+            return {
+                message: "Không tìm thấy biến thể!",
+                code: 1,
+                data: false
+            };
+        }
+        const existInCart = await prisma.shoppingCart.findMany({
+            where: { productVariantId: Number(id) }
+        });
+        if (existInCart) {
+            await prisma.shoppingCart.updateMany({
+                where: { id, productVariantId: id },
+                data: {
+                    status: 5
+                }
+            });
+        }
+
+        return {
+            code: 0,
+            message: "Xóa biến thể thành công!",
+            data: variant,
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            code: -1,
+            message: "Lỗi server khi xóa biến thể!",
+            data: false,
+        };
+    }
+};
+
 export default {
     getRecentOrders, getSalesData, getCategoriesSale, 
     getAllProducts, getProductById, getProductCategories, createProduct, updateProduct, deleteProduct,
+    getProdctDetail, getAllVariants, getVariantById, createVariant, updateVariant, deleteVariant,
 }
