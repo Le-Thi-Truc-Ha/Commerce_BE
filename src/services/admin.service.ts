@@ -851,7 +851,7 @@ const getBill = async ( orderId: number ): Promise<ReturnData> => {
             // Áp dụng voucher theo danh mục
             for (const vod of od.voucherOrderDetails) {
                 const voucher = vod.voucherCategory?.voucher;
-                if (voucher?.type === 1) {
+                if (voucher?.type === 3) {
                     totalVoucher += (voucher.discountPercent / 100) * finalPrice;
                 }
             }
