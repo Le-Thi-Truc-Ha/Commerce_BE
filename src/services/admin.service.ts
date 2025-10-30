@@ -171,7 +171,7 @@ const getAllProducts = async ( page: number = 1, limit: number = 10, search: str
             prisma.product.count({ where })
         ]);
 
-        const result = products.map((p: Product) => {
+        const result = products.map((p) => {
             const minPrice = p.productVariants.length > 0 ? Math.min(...p.productVariants.map((v) => v.price)) : 0;
             const totalQuantity = p.productVariants.filter(v => v.status !== 0).reduce((sum, v) => sum + v.quantity, 0);
             return {
