@@ -10,12 +10,12 @@ const getRecentOrders = async (): Promise<ReturnData> => {
             include: { account: { select: { fullName: true }} },
         });
 
-        const data: OrderDash[] = orders.map((o: OrderDash) => ({
+        const data = orders.map(o => ({
             id: o.id,
             accountName: o.account?.fullName ?? "",
             total: o.total,
             orderDate: o.orderDate.toString(),
-            currentStatus: o.currentStatus ?? 0,
+            currentStatus: o.currentStatus,
         }));
         return { 
             message: "Lấy danh sách đơn hàng gần đây thành công!",
@@ -53,7 +53,7 @@ const getSalesData = async (): Promise<ReturnData> =>{
             "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"
         ];
 
-        const data: SalesDataDash[] = result.map((r: SalesDataDash) => ({
+        const data = result.map(r => ({
             month: months[Number(r.month) - 1],
             revenue: Number(r.revenue),
             orders: Number(r.orders),
