@@ -80,14 +80,18 @@ const getCategoriesSale = async (): Promise<ReturnData> => {
             { name: string; value: number }[]
         >`
             SELECT
-                c."name" AS name,
-                COALESCE(SUM(od."quantity"), 0) AS value
+                c."id",
+                c."name" AS category_name,
+                COALESCE(SUM(o."total"), 0) AS total_revenue
             FROM "Categories" c
             LEFT JOIN "Product" p ON c."id" = p."categoryId"
             LEFT JOIN "ProductVariant" pv ON p."id" = pv."productId"
             LEFT JOIN "OrderDetail" od ON pv."id" = od."productVariantId"
-            GROUP BY c."id"
-            ORDER BY value DESC;
+            LEFT JOIN "Order" o ON od."orderId" = o."id"
+            WHERE o."status" = 4
+            GROUP BY c."id", c."name"
+            ORDER BY total_revenue DESC
+            LIMIT 10;
         `;
 
         const data: CategoryDash[] = result.map((r: CategoryDash) => ({
