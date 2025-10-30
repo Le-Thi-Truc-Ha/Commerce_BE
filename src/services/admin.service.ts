@@ -1554,8 +1554,8 @@ const getVoucherById = async (id: number): Promise<ReturnData> => {
 
 const getVoucherCategories = async (search: string): Promise<ReturnData> => {
     try {
-        const where = search
-            ? { name: { contains: search, mode:"insensitive" }, status: 1 }
+        const where: any = search
+            ? { name: { contains: search.trim(), mode: "insensitive" }, status: 1 }
             : { status: 1 };
 
         const categories = await prisma.categories.findMany({
@@ -1733,7 +1733,7 @@ const getAllCategories = async (page: number, limit: number, search: string): Pr
         }
 
         function countTotalProducts(categoryId: number): number {
-            const cat = allCategories.find((c: Category) => c.id === categoryId);
+            const cat = allCategories.find((c) => c.id === categoryId);
             let total = cat?._count.products || 0;
             const children = categoryChildrenMap.get(categoryId) || [];
             for (const childId of children) total += countTotalProducts(childId);
