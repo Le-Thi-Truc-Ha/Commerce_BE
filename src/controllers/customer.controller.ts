@@ -46,11 +46,11 @@ export const savePasswordController = async (req: Request, res: Response): Promi
 
 export const createAddressController = async (req: Request, res: Response): Promise<any> => {
     try {
-        const {accountId, name, phone, address, isDefault} = req.body;
-        if (!accountId || !name || !phone || !address || isDefault == undefined) {
+        const {accountId, name, phone, address, isDefault, longitude, latitude} = req.body;
+        if (!accountId || !name || !phone || !address || isDefault == undefined || !longitude || !latitude) {
             return res.status(200).json(dataError);
         }
-        const result: ReturnData = await customerService.createAddressService(accountId, name, phone, address, isDefault);
+        const result: ReturnData = await customerService.createAddressService(accountId, name, phone, address, isDefault, longitude, latitude);
         returnController(result, res);
     } catch(e) {
         console.log(e);
@@ -88,11 +88,11 @@ export const getAddressController = async (req: Request, res: Response): Promise
 
 export const updateAddressController = async (req: Request, res: Response): Promise<any> => {
     try {
-        const {addressId, accountId, name, phone, address, isDefault} = req.body;
-        if (!addressId || !accountId || !name || !phone || !address || isDefault == undefined) {
+        const {addressId, accountId, name, phone, address, isDefault, longitude, latitude} = req.body;
+        if (!addressId || !accountId || !name || !phone || !address || isDefault == undefined || !longitude || !latitude) {
             return res.status(200).json(dataError);
         }
-        const result: ReturnData = await customerService.updateAddressService(addressId, accountId, name, phone, address, isDefault);
+        const result: ReturnData = await customerService.updateAddressService(addressId, accountId, name, phone, address, isDefault, longitude, latitude);
         returnController(result, res);
     } catch(e) {
         console.log(e);
@@ -206,6 +206,76 @@ export const updateQuantityCartController = async (req: Request, res: Response):
             return res.status(200).json(dataError);
         }
         const result: ReturnData = await customerService.updateQuantityCartService(quantityCart, now);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const deleteProductInCartController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {cartId, take, now} = req.body;
+        if (!cartId || !take || !now) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.deleteProductInCartService(cartId, take, req.user?.accountId ?? -1, now);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const getProductDetailModalController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, productId} = req.body;
+        if (!accountId || !productId) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.getProductDetailModalService(accountId, productId);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const updateVariantInCartController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {cartId, accountId, variantId, quantity, now} = req.body;
+        if (!cartId || !accountId || !variantId || !quantity || !now) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.updateVariantInCartService(cartId, accountId, variantId, quantity, now);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const getAddressAndFeeController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId} = req.body;
+        if (!accountId) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.getAddressAndFeeService(accountId);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const getVoucherController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, productId, totalPrice} = req.body;
+        if (!accountId || !productId || !totalPrice) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.getVoucherService(accountId, productId, totalPrice);
         returnController(result, res);
     } catch(e) {
         console.log(e);
