@@ -1,4 +1,4 @@
-import { prisma, ReturnData, OrderDash, SalesDataDash, CategoryDash, Product, Media, Variant, Promotion, Voucher, Category } from "../interfaces/admin.interface";
+import { prisma, ReturnData, CategoryDash, Product, Media, Variant, Promotion, Voucher, Category } from "../interfaces/admin.interface";
 import dayjs from "dayjs";
 
 /** Dashboard */
@@ -873,6 +873,93 @@ const getBill = async ( orderId: number ): Promise<ReturnData> => {
         console.log(e);
         return {
             message: "Lỗi khi lấy thông tin hóa đơn!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getOrderHistories = async (id: number): Promise<ReturnData> => {
+    try {
+        const order = await prisma.order.findUnique({ where: { id: Number(id) } });
+        if(!order) {
+            return {
+                message: "Không tìm thấy đơn hàng!",
+                code: 1,
+                data: false
+            };
+        }
+        const histories = await prisma.orderStatusHistory.findMany({
+            where: { orderId: Number(id) },
+            select:{
+                id: true,
+                date: true,
+                orderStatus: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                note: true
+            }
+        });
+
+        return {
+            message: "Lấy danh sách trạng thái đơn hàng thành công!",
+            code: 0,
+            data: histories
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách trạng thái đơn hàng!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const updateStatus = async (id: number, status: number, note?: string): Promise<ReturnData> => {
+    try {
+        const order = await prisma.order.findUnique({ where: { id: Number(id) }, include: { bills: true }});
+        if (!order) {
+            return {
+                message: "Không tìm thấy đơn hàng!",
+                code: 1,
+                data: false
+            }
+        }
+
+        const update = await prisma.order.update({
+            where: { id: Number(id) },
+            data: { currentStatus: status }
+        });
+
+        await prisma.orderStatusHistory.create({
+            data: {
+                orderId: Number(id),
+                statusId: Number(status),
+                date: new Date(),
+                note: note || null
+            }
+        });
+
+        if (Number(status) === 4 && order.bills.length > 0) {
+            await prisma.bill.update({
+                where: { id: order.bills[0].id },
+                data: { invoiceTime: new Date() }
+            })
+        } 
+        
+        return {
+            message: "Cập nhật trạng thái đơn hàng thành công!",
+            code: 0,
+            data: update
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi cập nhật trạng thái đơn hàng!",
             code: -1,
             data: false
         };
@@ -1939,7 +2026,7 @@ export default {
     getRecentOrders, getSalesData, getCategoriesSale, 
     getAllProducts, getProductById, getProductCategories, createProduct, updateProduct, deleteProduct,
     getProdctDetail, getAllVariants, getVariantById, createVariant, updateVariant, deleteVariant,
-    getStatus, getAllOrders, getBill,
+    getStatus, getAllOrders, getBill, getOrderHistories, updateStatus,
     getAllCustomers, getCustomerDetail, getCustomerOrders,
     getAllPromotions, getPromotionProducts, getPromotionById, getProductsByCategory, createPromotion, updatePromotion, deletePromotion,
     getAllVouchers, getVoucherDetail, getVoucherById, getVoucherCategories, createVoucher, updateVoucher, deleteVoucher,
