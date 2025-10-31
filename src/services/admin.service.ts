@@ -1,4 +1,4 @@
-import { prisma, ReturnData, OrderDash, SalesDataDash, CategoryDash, Product, Media, Variant, Promotion, Voucher, Category } from "../interfaces/admin.interface";
+import { prisma, ReturnData, CategoryDash, Product, Media, Variant, Promotion, Voucher, Category } from "../interfaces/admin.interface";
 import dayjs from "dayjs";
 
 /** Dashboard */
@@ -10,12 +10,12 @@ const getRecentOrders = async (): Promise<ReturnData> => {
             include: { account: { select: { fullName: true }} },
         });
 
-        const data: OrderDash[] = orders.map((o: OrderDash) => ({
+        const data = orders.map(o => ({
             id: o.id,
             accountName: o.account?.fullName ?? "",
             total: o.total,
             orderDate: o.orderDate.toString(),
-            currentStatus: o.currentStatus ?? 0,
+            currentStatus: o.currentStatus,
         }));
         return { 
             message: "Lấy danh sách đơn hàng gần đây thành công!",
@@ -53,7 +53,7 @@ const getSalesData = async (): Promise<ReturnData> =>{
             "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"
         ];
 
-        const data: SalesDataDash[] = result.map((r: SalesDataDash) => ({
+        const data = result.map(r => ({
             month: months[Number(r.month) - 1],
             revenue: Number(r.revenue),
             orders: Number(r.orders),
@@ -80,14 +80,18 @@ const getCategoriesSale = async (): Promise<ReturnData> => {
             { name: string; value: number }[]
         >`
             SELECT
-                c."name" AS name,
-                COALESCE(SUM(od."quantity"), 0) AS value
+                c."id",
+                c."name" AS category_name,
+                COALESCE(SUM(o."total"), 0) AS total_revenue
             FROM "Categories" c
             LEFT JOIN "Product" p ON c."id" = p."categoryId"
             LEFT JOIN "ProductVariant" pv ON p."id" = pv."productId"
             LEFT JOIN "OrderDetail" od ON pv."id" = od."productVariantId"
-            GROUP BY c."id"
-            ORDER BY value DESC;
+            LEFT JOIN "Order" o ON od."orderId" = o."id"
+            WHERE o."status" = 4
+            GROUP BY c."id", c."name"
+            ORDER BY total_revenue DESC
+            LIMIT 10;
         `;
 
         const data: CategoryDash[] = result.map((r: CategoryDash) => ({
@@ -167,7 +171,7 @@ const getAllProducts = async ( page: number = 1, limit: number = 10, search: str
             prisma.product.count({ where })
         ]);
 
-        const result = products.map((p: Product) => {
+        const result = products.map((p) => {
             const minPrice = p.productVariants.length > 0 ? Math.min(...p.productVariants.map((v) => v.price)) : 0;
             const totalQuantity = p.productVariants.filter(v => v.status !== 0).reduce((sum, v) => sum + v.quantity, 0);
             return {
@@ -847,7 +851,7 @@ const getBill = async ( orderId: number ): Promise<ReturnData> => {
             // Áp dụng voucher theo danh mục
             for (const vod of od.voucherOrderDetails) {
                 const voucher = vod.voucherCategory?.voucher;
-                if (voucher?.type === 1) {
+                if (voucher?.type === 3) {
                     totalVoucher += (voucher.discountPercent / 100) * finalPrice;
                 }
             }
@@ -869,6 +873,93 @@ const getBill = async ( orderId: number ): Promise<ReturnData> => {
         console.log(e);
         return {
             message: "Lỗi khi lấy thông tin hóa đơn!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const getOrderHistories = async (id: number): Promise<ReturnData> => {
+    try {
+        const order = await prisma.order.findUnique({ where: { id: Number(id) } });
+        if(!order) {
+            return {
+                message: "Không tìm thấy đơn hàng!",
+                code: 1,
+                data: false
+            };
+        }
+        const histories = await prisma.orderStatusHistory.findMany({
+            where: { orderId: Number(id) },
+            select:{
+                id: true,
+                date: true,
+                orderStatus: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                note: true
+            }
+        });
+
+        return {
+            message: "Lấy danh sách trạng thái đơn hàng thành công!",
+            code: 0,
+            data: histories
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi lấy danh sách trạng thái đơn hàng!",
+            code: -1,
+            data: false
+        };
+    }
+};
+
+const updateStatus = async (id: number, status: number, note?: string): Promise<ReturnData> => {
+    try {
+        const order = await prisma.order.findUnique({ where: { id: Number(id) }, include: { bills: true }});
+        if (!order) {
+            return {
+                message: "Không tìm thấy đơn hàng!",
+                code: 1,
+                data: false
+            }
+        }
+
+        const update = await prisma.order.update({
+            where: { id: Number(id) },
+            data: { currentStatus: status }
+        });
+
+        await prisma.orderStatusHistory.create({
+            data: {
+                orderId: Number(id),
+                statusId: Number(status),
+                date: new Date(),
+                note: note || null
+            }
+        });
+
+        if (Number(status) === 4 && order.bills.length > 0) {
+            await prisma.bill.update({
+                where: { id: order.bills[0].id },
+                data: { invoiceTime: new Date() }
+            })
+        } 
+        
+        return {
+            message: "Cập nhật trạng thái đơn hàng thành công!",
+            code: 0,
+            data: update
+        };
+    } catch (e) {
+        console.log(e);
+        return {
+            message: "Lỗi khi cập nhật trạng thái đơn hàng!",
             code: -1,
             data: false
         };
@@ -1550,8 +1641,8 @@ const getVoucherById = async (id: number): Promise<ReturnData> => {
 
 const getVoucherCategories = async (search: string): Promise<ReturnData> => {
     try {
-        const where = search
-            ? { name: { contains: search, mode:"insensitive" }, status: 1 }
+        const where: any = search
+            ? { name: { contains: search.trim(), mode: "insensitive" }, status: 1 }
             : { status: 1 };
 
         const categories = await prisma.categories.findMany({
@@ -1729,7 +1820,7 @@ const getAllCategories = async (page: number, limit: number, search: string): Pr
         }
 
         function countTotalProducts(categoryId: number): number {
-            const cat = allCategories.find((c: Category) => c.id === categoryId);
+            const cat = allCategories.find((c) => c.id === categoryId);
             let total = cat?._count.products || 0;
             const children = categoryChildrenMap.get(categoryId) || [];
             for (const childId of children) total += countTotalProducts(childId);
@@ -1935,7 +2026,7 @@ export default {
     getRecentOrders, getSalesData, getCategoriesSale, 
     getAllProducts, getProductById, getProductCategories, createProduct, updateProduct, deleteProduct,
     getProdctDetail, getAllVariants, getVariantById, createVariant, updateVariant, deleteVariant,
-    getStatus, getAllOrders, getBill,
+    getStatus, getAllOrders, getBill, getOrderHistories, updateStatus,
     getAllCustomers, getCustomerDetail, getCustomerOrders,
     getAllPromotions, getPromotionProducts, getPromotionById, getProductsByCategory, createPromotion, updatePromotion, deletePromotion,
     getAllVouchers, getVoucherDetail, getVoucherById, getVoucherCategories, createVoucher, updateVoucher, deleteVoucher,

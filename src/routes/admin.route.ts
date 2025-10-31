@@ -7,7 +7,7 @@ import multer from "multer";
 const adminRoute = express.Router();
 const upload = multer();
 
-adminRoute.use(checkLogin, checkPermission);
+// adminRoute.use(checkLogin, checkPermission);
 
 /** Dashboard */
 adminRoute.get("/recent-orders", adminController.getRecentOrdesController);
@@ -35,6 +35,8 @@ adminRoute.delete("/delete-variant", adminController.deleteVariantController);
 adminRoute.get("/status", adminController.getStatusController);
 adminRoute.get("/orders", adminController.getAllOrdersController);
 adminRoute.get("/bill", adminController.getBillController);
+adminRoute.get("/order-histories", adminController.getOrderHistoriesController);
+adminRoute.get("/order-update-status", adminController.updateStatusController);
 
 /** Quản lý khách hàng */
 adminRoute.get("/customers", adminController.getAllCustomersController);

@@ -216,7 +216,7 @@ model OrderStatusHistory {
   orderId     Int?
   statusId    Int?
   date        DateTime
-  note        String
+  note        String?
   order       Order?       @relation(fields: [orderId], references: [id])
   orderStatus OrderStatus? @relation(fields: [statusId], references: [id])
 }
@@ -265,9 +265,9 @@ model Bill {
   orderId       Int?
   shippingFeeId Int?
   status        Int
-  paymentMethod String
-  invoiceTime   DateTime
-  paymentTime   DateTime
+  paymentMethod Int
+  invoiceTime   DateTime?
+  paymentTime   DateTime?
   total         Int
   order         Order?       @relation(fields: [orderId], references: [id])
   shippingFee   ShippingFee? @relation(fields: [shippingFeeId], references: [id])
