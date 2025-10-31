@@ -7,7 +7,7 @@ import multer from "multer";
 const adminRoute = express.Router();
 const upload = multer();
 
-// adminRoute.use(checkLogin, checkPermission);
+adminRoute.use(checkLogin, checkPermission);
 
 /** Dashboard */
 adminRoute.get("/recent-orders", adminController.getRecentOrdesController);
