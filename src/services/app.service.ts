@@ -462,8 +462,9 @@ export const getProductService = async (accountId: number, category: number, sor
             const productId = productSelect.map((item) => (item.id))
             product = await Promise.all(
                 productId.map(async (item) => (
-                    await prisma.product.findMany({
-                        where: {id: item}
+                    await prisma.product.findUnique({
+                        where: {id: item},
+                        select: productInfomation(now, accountId)
                     })
                 ))
             )
@@ -726,7 +727,7 @@ export const checkUpdateCartService = async (cartId: number): Promise<ReturnData
     }
 }
 
-export const findValueService = async (findValue: string, productId: number[] | null, page: number, accountId: number): Promise<ReturnData> => {
+export const findValueService = async (findValue: string, productId: number[] | null, page: number, accountId: number, keyBeforeLogin: string | undefined): Promise<ReturnData> => {
     try {
         // ts_rank: Tính mức độ giống nhau giữa chuỗi đầu vào và chuỗi trong csdl
         // to_tsvector: Hàm tách các từ trong văn bản
@@ -737,12 +738,14 @@ export const findValueService = async (findValue: string, productId: number[] | 
         // plainto_tsquery: Tách chuỗi tìm kiếm thành các từ, nó sẽ có dạng từ 1 & từ 2..., nghĩa là chuỗi trong csdl phải chứa tất cả các từ này thì kết quả đó mới được lấy
         // a @@ b phép so sánh giữa hai chuỗi, trong truy vấn này thì phép so sánh sẽ trả về true nếu tất cả các từ trong b có trong a
         let existProductId = productId;
+        let uuid = keyBeforeLogin;
         if (!existProductId) {
             const products: {id: number, rank: number}[] = await prisma.$queryRaw`
                 select 
                     p.id,
                     ts_rank(
                         to_tsvector('simple', unaccent(
+                            'san pham do' || ' ' ||
                             coalesce(p.name, '') || ' ' || 
                             coalesce(p.description, '') || ' ' ||
                             'lien than' || ' ' || coalesce(string_agg(f.fit, ' '), '') || ' ' ||
@@ -752,7 +755,15 @@ export const findValueService = async (findValue: string, productId: number[] | 
                             'mau' || ' ' || coalesce(string_agg(f.color, ' '), '') || ' ' ||
                             'kich thuoc size' || ' ' || coalesce(string_agg(f.size, ' '), '') || ' ' ||
                             'style xu huong kieu loai' || ' ' || coalesce(string_agg(f.style, ' '), '') || ' ' ||
-                            'cho nguoi tuoi' || ' ' || coalesce(string_agg(f.age, ''), '')
+                            'cho nguoi tuoi' || ' ' || coalesce(string_agg(f.age, ''), '') || ' ' ||
+                            'co tay ao chieu dai dang' || ' ' || coalesce(string_agg(f.neckline, ''), '') || ' ' ||
+                            coalesce(string_agg(f.sleeve, ''), '') || ' ' ||
+                            coalesce(string_agg(f."pantLength", ''), '') || ' ' ||
+                            coalesce(string_agg(f."pantShape", ''), '') || ' ' ||
+                            coalesce(string_agg(f."dressLength", ''), '') || ' ' ||
+                            coalesce(string_agg(f."dressShape", ''), '') || ' ' ||
+                            coalesce(string_agg(f."skirtLength", ''), '') || ' ' ||
+                            coalesce(string_agg(f."skirtShape", ''), '')
                         )),
                         plainto_tsquery('simple', unaccent(${findValue}))
                     ) as rank
@@ -760,6 +771,7 @@ export const findValueService = async (findValue: string, productId: number[] | 
                 left join "ProductFeature" as f on f."productId" = p.id
                 group by p.id, p.name, p.description
                 having to_tsvector('simple', unaccent(
+                    'san pham do' || ' ' ||
                     coalesce(p.name, '') || ' ' || 
                     coalesce(p.description, '') || ' ' ||
                     'lien than' || ' ' || coalesce(string_agg(f.fit, ' '), '') || ' ' ||
@@ -769,11 +781,51 @@ export const findValueService = async (findValue: string, productId: number[] | 
                     'mau' || ' ' || coalesce(string_agg(f.color, ' '), '') || ' ' ||
                     'kich thuoc size' || ' ' || coalesce(string_agg(f.size, ' '), '') || ' ' ||
                     'style xu huong kieu loai' || ' ' || coalesce(string_agg(f.style, ' '), '') || ' ' ||
-                    'cho nguoi tuoi' || ' ' || coalesce(string_agg(f.age, ''), '')
+                    'cho nguoi tuoi' || ' ' || coalesce(string_agg(f.age, ''), '') || ' ' ||
+                    'co tay ao chieu dai dang' || ' ' || coalesce(string_agg(f.neckline, ''), '') || ' ' ||
+                    coalesce(string_agg(f.sleeve, ''), '') || ' ' ||
+                    coalesce(string_agg(f."pantLength", ''), '') || ' ' ||
+                    coalesce(string_agg(f."pantShape", ''), '') || ' ' ||
+                    coalesce(string_agg(f."dressLength", ''), '') || ' ' ||
+                    coalesce(string_agg(f."dressShape", ''), '') || ' ' ||
+                    coalesce(string_agg(f."skirtLength", ''), '') || ' ' ||
+                    coalesce(string_agg(f."skirtShape", ''), '')
                 )) @@ plainto_tsquery('simple', unaccent(${findValue})) and p.status = 1
                 order by rank desc;
             `;
+            const now = new Date();
             existProductId = products.map((item) => (item.id));
+            if (accountId != -1) {
+                await Promise.all(
+                    existProductId.map(async (item) => {
+                        return await prisma.userBehavior.create({
+                            data: {
+                                accountId: accountId,
+                                productId: item,
+                                behaviorType: 6,
+                                time: now
+                            }
+                        })
+                    })
+                )
+            } else {
+                if (!uuid) {
+                    uuid = uuidv1();
+                    await redis.set(uuid, JSON.stringify({accountId: -1, roleId: 2, googleLogin: false}), "EX", 60*60*24*30);
+                }
+                await Promise.all(
+                    existProductId.map(async (item) => {
+                        return await prisma.userBehavior.create({
+                            data: {
+                                uuid: uuid,
+                                productId: item,
+                                behaviorType: 6,
+                                time: now
+                            }
+                        })
+                    })
+                )
+            }
         }
 
         const size = 20;
@@ -789,7 +841,7 @@ export const findValueService = async (findValue: string, productId: number[] | 
                 productInPage.push(result);
             }
         }
-        return success("Thành công", {product: productInPage, productId: existProductId})
+        return success("Thành công", {product: productInPage, productId: existProductId, uuid: uuid})
     } catch(e) {
         console.log(e);
         return serviceError;

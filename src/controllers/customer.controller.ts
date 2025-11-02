@@ -33,7 +33,7 @@ export const saveAccountInformationController = async (req: Request, res: Respon
 export const savePasswordController = async (req: Request, res: Response): Promise<any> => {
     try {
         const {accountId, oldPassword, newPassword} = req.body;
-        if (!accountId || !oldPassword || !newPassword) {
+        if (!accountId || !newPassword) {
             return res.status(200).json(dataError);
         }
         const result: ReturnData = await customerService.savePasswordService(accountId, oldPassword, newPassword);
@@ -172,12 +172,12 @@ export const getAllHistoryController = async (req: Request, res: Response): Prom
 
 export const addCartController = async (req: Request, res: Response): Promise<any> => {
     try {
-        const {accountId, productVariantId, quantity, now} = req.body;
-        if (!accountId || !productVariantId || !quantity || !now) {
+        const {accountId, productId, productVariantId, quantity, now} = req.body;
+        if (!accountId || !productId || !productVariantId || !quantity || !now) {
             return res.status(200).json(dataError);
         }
         
-        const result: ReturnData = await customerService.addCartService(accountId, productVariantId, quantity, now);
+        const result: ReturnData = await customerService.addCartService(accountId, productId, productVariantId, quantity, now);
         returnController(result, res);
     } catch(e) {
         console.log(e);
@@ -215,11 +215,11 @@ export const updateQuantityCartController = async (req: Request, res: Response):
 
 export const deleteProductInCartController = async (req: Request, res: Response): Promise<any> => {
     try {
-        const {cartId, take, now} = req.body;
-        if (!cartId || !take || !now) {
+        const {cartId, productId, take, now} = req.body;
+        if (!cartId || !productId || !take || !now) {
             return res.status(200).json(dataError);
         }
-        const result: ReturnData = await customerService.deleteProductInCartService(cartId, take, req.user?.accountId ?? -1, now);
+        const result: ReturnData = await customerService.deleteProductInCartService(cartId, productId, take, req.user?.accountId ?? -1, now);
         returnController(result, res);
     } catch(e) {
         console.log(e);
@@ -276,6 +276,76 @@ export const getVoucherController = async (req: Request, res: Response): Promise
             return res.status(200).json(dataError);
         }
         const result: ReturnData = await customerService.getVoucherService(accountId, productId, totalPrice);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const orderProductController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, productOrder, address, totalPrice, orderDate, note, voucherUse, shippingFeeId, paymentMethod, finalPrice} = req.body;
+        if (!accountId || !productOrder || !address || !totalPrice || !orderDate || note == undefined || !voucherUse || !shippingFeeId || paymentMethod == undefined || !finalPrice) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.orderProductService(accountId, productOrder, address, totalPrice, orderDate, note, voucherUse, shippingFeeId, paymentMethod, finalPrice);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const getOrderListController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, status, page} = req.body;
+        if (!accountId || !status || !page) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.getOrderListService(accountId, status, page);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const getOrderDetailController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, orderId} = req.body;
+        if (!accountId || !orderId) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.getOrderDetailService(accountId, orderId);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const confirmReceiveProductController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {orderId, now} = req.body;
+        if (!orderId || !now) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.confirmReceiveProductService(orderId, now);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const returnProductController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {orderId, take, now, accountId, status, reason, mode, productId, productVariantId, quantity} = req.body;
+        if (!orderId || take == undefined || !now || !accountId || !status || !reason || !mode || !productId || !productVariantId ||!quantity) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.returnProductService(orderId, take, now, accountId, status, reason, mode, productId, productVariantId, quantity);
         returnController(result, res);
     } catch(e) {
         console.log(e);
