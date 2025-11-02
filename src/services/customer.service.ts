@@ -1,6 +1,8 @@
 import { compare, genSalt, hash } from "bcrypt-ts";
 import { notFound, prisma, productInfomation, ReturnData, serviceError, success } from "../interfaces/app.interface";
-import { CartProduct, UserInformation } from "../interfaces/customer.interface";
+import { AddressInformation, CartProduct, OrderData, OrderDetailData, UserInformation, VoucherUse } from "../interfaces/customer.interface";
+import dayjs from "dayjs";
+import { dmmfToRuntimeDataModel } from "@prisma/client/runtime/edge";
 
 export const getAccountInformationService = async (accountId: number): Promise<ReturnData> => {
     try {
@@ -69,15 +71,17 @@ export const savePasswordService = async (accountId: number, oldPassword: string
         if (!account) {
             return notFound;
         }
-        const checkPassword = await compare(oldPassword, account.password ?? "");
-        if (!checkPassword) {
-            return({
-                message: "Mật khẩu cũ không đúng",
-                data: false,
-                code: 1
-            })
+        if (account.password) {
+            const checkPassword = await compare(oldPassword, account.password);
+            if (!checkPassword) {
+                return({
+                    message: "Mật khẩu cũ không đúng",
+                    data: false,
+                    code: 1
+                })
+            }
         }
-        
+
         const salt = await genSalt(10);
         const hashPassword = await hash(newPassword, salt);
 
@@ -340,6 +344,14 @@ export const deleteFavouriteService = async (accountId: number, productId: numbe
         if (deleteFavourite.count == 0) {
             return notFound;
         }
+        const createUserBehavior = await prisma.userBehavior.create({
+            data: {
+                accountId: accountId,
+                productId: productId,
+                behaviorType: 8,
+                time: new Date(now)
+            }
+        })
         let nextFavourite = null;
         if (take != -1) {
             nextFavourite = await prisma.favourite.findMany({
@@ -446,88 +458,130 @@ export const getAllHistoryService = async (accountId: number, page: number): Pro
     }
 }
 
-export const addCartService = async (accountId: number, productVariantId: number, quantity: number, now: string): Promise<ReturnData> => {
+export const addCartService = async (accountId: number, productId: number[], productVariantId: number[], quantity: number[], now: string): Promise<ReturnData> => {
     try {
-        const existVariant = await prisma.productVariant.findMany({
-            where: {
-                AND: [
-                    {id: productVariantId},
-                    {product: {
-                        status: 1
-                    }}
-                ]
-            }
-        })
-        if (existVariant.length == 0) {
-            return({
-                message: "Sản phẩm đã bị ẩn",
-                data: false,
-                code: 2
-            })
-        }
-        const existItem = await prisma.shoppingCart.findMany({
-            where: {
-                AND: [
-                    {status: {in: [1, 3]}},
-                    {accountId: accountId},
-                    {productVariantId: productVariantId}
-                ]
-            },
-            select: {
-                id: true,
-                quantity: true,
-                productVariant: {
-                    select: {
-                        quantity: true
+        let existItem: any[] = []
+        for (let i = 0; i < productId.length; i++) {
+            const existVariant = await prisma.productVariant.findUnique({
+                where: {
+                    id: productVariantId[i]
+                },
+                select: {
+                    status: true,
+                    quantity: true,
+                    product: {
+                        select: {
+                            name: true,
+                            status: true
+                        }
                     }
                 }
-            }
-        })
-
-        if (existItem.length > 0) {
-            const oldQuantity = existItem.reduce((sum, current) => (sum + current.quantity), 0)
-            if (existItem[0].productVariant?.quantity && existItem[0].productVariant?.quantity < quantity + oldQuantity) {
+            })
+            if (!existVariant) {
                 return({
-                    message: "Số lượng sản phẩm trong giỏ hàng vượt quá số lượng sản phẩm",
+                    message: `Sản phẩm đã bị ẩn`,
+                    data: false,
+                    code: 2
+                })
+            }
+            if (existVariant && existVariant.status == 2) {
+                return({
+                    message: `Phân loại sản phẩm ${existVariant?.product?.name} đã bị ẩn`,
                     data: false,
                     code: 1
                 })
             }
-            const result = await prisma.$transaction(async (tx) => {
-                const newCartItem = await tx.shoppingCart.create({
+            if (existVariant && [2, 3].includes(existVariant.product?.status ?? -1)) {
+                return({
+                    message: `Sản phẩm ${existVariant?.product?.name} đã bị ẩn`,
+                    data: false,
+                    code: 1
+                })
+            }
+            existItem = await prisma.shoppingCart.findMany({
+                where: {
+                    AND: [
+                        {status: {in: [1, 3]}},
+                        {accountId: accountId},
+                        {productVariantId: productVariantId[i]}
+                    ]
+                },
+                select: {
+                    id: true,
+                    quantity: true,
+                    productVariant: {
+                        select: {
+                            quantity: true,
+                            product: {
+                                select: {
+                                    name: true
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+
+            if (existItem.length > 0) {
+                const oldQuantity = existItem.reduce((sum, current) => (sum + current.quantity), 0)
+                if (existItem[0].productVariant?.quantity && existItem[0].productVariant?.quantity < quantity[i] + oldQuantity) {
+                    return({
+                        message: `Số lượng sản phẩm ${existItem[0].productVariant.product.name} trong giỏ hàng vượt quá số lượng sản phẩm`,
+                        data: false,
+                        code: 1
+                    })
+                }
+                const result = await prisma.$transaction(async (tx) => {
+                    const newCartItem = await tx.shoppingCart.create({
+                        data: {
+                            accountId: accountId,
+                            productVariantId: productVariantId[i],
+                            quantity: quantity[i] + oldQuantity,
+                            status: 1,
+                            updateAt: new Date(now)
+                        }
+                    });
+
+                    await Promise.all(
+                        existItem.map(async (item) => (
+                            await tx.shoppingCart.delete({
+                                where: {id: item.id}
+                            })
+                        ))
+                    )
+                    const createUserBehavior = await tx.userBehavior.create({
+                        data: {
+                            accountId: accountId,
+                            productId: productId[i],
+                            behaviorType: 2,
+                            time: new Date(now)
+                        }
+                    })
+                })
+            } else {
+                const newCartItem = await prisma.shoppingCart.create({
                     data: {
                         accountId: accountId,
-                        productVariantId: productVariantId,
-                        quantity: quantity + oldQuantity,
+                        productVariantId: productVariantId[i],
+                        quantity: quantity[i],
                         status: 1,
                         updateAt: new Date(now)
                     }
-                });
-
-                await Promise.all(
-                    existItem.map(async (item) => (
-                        await tx.shoppingCart.delete({
-                            where: {id: item.id}
-                        })
-                    ))
-                )
-                return newCartItem
-            })
-        } else {
-            const newCartItem = await prisma.shoppingCart.create({
-                data: {
-                    accountId: accountId,
-                    productVariantId: productVariantId,
-                    quantity: quantity,
-                    status: 1,
-                    updateAt: new Date(now)
+                })
+                if (!newCartItem) {
+                    return({
+                        message: "Xảy ra lỗi khi thêm sản phẩm vào giỏ hàng",
+                        data: false,
+                        code: 1
+                    })
                 }
-            })
-            if (!newCartItem) {
-                return({
-                    message: "Xảy ra lỗi khi thêm sản phẩm vào giỏ hàng",
-                    data: false,
-                    code: 1
+                const createUserBehavior = await prisma.userBehavior.create({
+                    data: {
+                        accountId: accountId,
+                        productId: productId[i],
+                        behaviorType: 2,
+                        time: new Date(now)
+                    }
                 })
             }
         }
@@ -637,10 +691,12 @@ export const getProductInCartService = async (accountId: number, page: number): 
 
         const count = await prisma.shoppingCart.count({
             where: {
-                status: {in: [1, 3, 5]}
+                AND: [
+                    {status: {in: [1, 3, 5]}},
+                    {accountId: accountId}
+                ]
             }
         })
-
         return success("Thành công", {product, count});
     } catch(e) {
         console.log(e);
@@ -680,7 +736,7 @@ export const updateQuantityCartService = async (quantityCart: {cartId: number, q
     }
 }
 
-export const deleteProductInCartService = async (cartId: number[], take: number, accoutId: number, now: string): Promise<ReturnData> => {
+export const deleteProductInCartService = async (cartId: number[], productId: number[], take: number, accountId: number, now: string): Promise<ReturnData> => {
     try {
         const deleteTransaction = await prisma.$transaction(async (tx) => {
             const deleteCart = await tx.shoppingCart.updateMany({
@@ -695,7 +751,19 @@ export const deleteProductInCartService = async (cartId: number[], take: number,
             if (cartId.length != deleteCart.count) {
                 throw new Error("Không xóa được sản phẩm trong giỏ hàng");
             }
-
+            
+            await Promise.all(
+                productId.map(async (item) => {
+                    return await tx.userBehavior.create({
+                        data: {
+                            accountId: accountId,
+                            productId: item,
+                            behaviorType: 7,
+                            time: new Date(now)
+                        }
+                    })
+                })
+            )
             let product: CartProduct[] = []
             if (take == -1) {
                 return product
@@ -705,7 +773,7 @@ export const deleteProductInCartService = async (cartId: number[], take: number,
                 where: {
                     AND: [
                         {status: {in: [1, 3, 5]}},
-                        {accountId: accoutId}
+                        {accountId: accountId}
                     ]
                 },
                 orderBy: {
@@ -793,7 +861,7 @@ export const deleteProductInCartService = async (cartId: number[], take: number,
         const countCart = await prisma.shoppingCart.count({
             where: {
                 AND: [
-                    {accountId: accoutId},
+                    {accountId: accountId},
                     {status: {in: [1, 3, 5]}}
                 ]
             }
@@ -967,6 +1035,7 @@ export const getAddressAndFeeService = async (accountId: number): Promise<Return
                     id: addressDefault.defaultAddress
                 },
                 select: {
+                    id: true,
                     name: true,
                     phoneNumber: true,
                     address: true,
@@ -983,6 +1052,7 @@ export const getAddressAndFeeService = async (accountId: number): Promise<Return
                     ]
                 },
                 select: {
+                    id: true,
                     name: true,
                     phoneNumber: true,
                     address: true,
@@ -993,6 +1063,7 @@ export const getAddressAndFeeService = async (accountId: number): Promise<Return
         }
         const shippingFee = await prisma.shippingFee.findMany({
             select: {
+                id: true,
                 maxDistance: true,
                 minDistance: true,
                 cost: true
@@ -1087,8 +1158,6 @@ export const getVoucherService = async (accountId: number, productId: number[], 
                 categoryVoucher = [...categoryVoucher, {productId: item, voucher: [...result]}]
             }
         }
-        // console.dir(categoryVoucher, {depth: null});
-        // const voucherId = [...billAndShipVoucher.map((item) => (item.id)), ...categoryVoucher.flatMap((item) => (item.voucher.map((itemChild: any) => (itemChild.id))))]
         const voucherUsed = await prisma.order.findMany({
             where: {
                 AND: [
@@ -1113,6 +1182,748 @@ export const getVoucherService = async (accountId: number, productId: number[], 
         return success("success", {billAndShipVoucher, categoryVoucher});
     } catch(e) {
         console.log(e);
+        return serviceError;
+    }
+}
+
+// Kiểm tra: variant, product tồn tại, số lượng variant phải đủ
+export const orderProductService = async (
+    accountId: number, productOrder: CartProduct[], address: AddressInformation,
+    totalPrice: number, orderDate: string, note: string, voucherUse: VoucherUse, 
+    shippingFeeId: number, paymentMethod: number, finalPrice: number
+): Promise<ReturnData> => {
+    try {
+        const orderTransaction = await prisma.$transaction(async (tx) => {
+            let addressId = address.id;
+            if (addressId == -1) {
+                const createAddress = await tx.address.create({
+                    data: {
+                        address: address.address,
+                        name: address.name,
+                        phoneNumber: address.phone,
+                        longitude: address.longitude,
+                        latitude: address.latitude,
+                        accountId: accountId,
+                        status: 1
+                    }
+                })
+                addressId = createAddress.id;
+            }
+            const order = await tx.order.create({
+                data: {
+                    accountId: accountId,
+                    addressId: addressId,
+                    total: totalPrice,
+                    orderDate: new Date(orderDate),
+                    currentStatus: 2,
+                    note: note
+                }
+            })
+            const createOrderStatusHistory = await tx.orderStatusHistory.create({
+                data: {
+                    orderId: order.id,
+                    statusId: 2,
+                    date: new Date(orderDate),
+                }
+            })
+            const createBill = await tx.bill.create({
+                data: {
+                    orderId: order.id,
+                    shippingFeeId: shippingFeeId,
+                    status: paymentMethod == 1 ? 1 : 0,
+                    paymentMethod: paymentMethod,
+                    paymentTime: paymentMethod == 1 ? new Date(orderDate) : null,
+                    total: finalPrice
+                }
+            })
+            const orderDetailArray: {id: number, productVariantId: number | null, orderId: number | null, quantity: number}[] = []
+            for (const item of productOrder) {
+                const updateProductVariant = await tx.productVariant.updateManyAndReturn({
+                    where: {
+                        AND: [
+                            {id: item.productVariantId},
+                            {status: 1},
+                            {quantity: {gte: item.quantityOrder}},
+                        ]
+                    },
+                    data: {
+                        quantity: {decrement: item.quantityOrder}
+                    }
+                })
+                if (updateProductVariant.length == 0) {
+                    throw new Error(`Sản phẩm ${item.name} hiện không thể đặt hàng`)
+                } else {
+                    if (updateProductVariant[0].quantity == 0) {
+                        const updateProductStatus = await tx.$executeRaw`
+                            update "Product" as p
+                            set status = 3
+                            where p.id = ${item.productId} and not exists (
+                                select 1
+                                from "ProductVariant" as v
+                                where v."productId" = p.id and v.quantity > 0
+                            )
+                        `
+                    }
+                }
+                const createOrderDetail = await tx.orderDetail.create({
+                    data: {
+                        productVariantId: item.productVariantId,
+                        orderId: order.id,
+                        quantity: item.quantityOrder
+                    }
+                })
+                orderDetailArray.push(createOrderDetail);
+                const createUserBehavior = await tx.userBehavior.create({
+                    data: {
+                        accountId: accountId,
+                        productId: item.productId,
+                        behaviorType: 3,
+                        time: new Date(orderDate)
+                    }
+                })
+            } 
+            const cartId = productOrder.map((item) => (item.cartId)).filter(Boolean);
+            if (cartId.length > 0) {
+                const updateCart = await tx.shoppingCart.updateMany({
+                    where: {
+                        id: {in: cartId}
+                    },
+                    data: {
+                        status: 2,
+                        updateAt: new Date(orderDate)
+                    }
+                })
+            } 
+            if (voucherUse.shipVoucher) {
+                const updateVoucher = await tx.voucher.updateMany({
+                    where: {
+                        AND: [
+                            {id: voucherUse.shipVoucher.voucherId},
+                            {quantity: {gt: 0}},
+                            {status: 1},
+                            {startDate: {lte: new Date(orderDate)}},
+                            {endDate: {gte: new Date(orderDate)}}
+                        ]
+                    },
+                    data: {
+                        quantity: {decrement: 1}
+                    }
+                })
+                if (updateVoucher.count == 0) {
+                    throw new Error(`Không thể sử dụng voucher ${voucherUse.shipVoucher.voucherCode}`)
+                }
+                const createShipVoucher = await tx.orderVoucher.create({
+                    data: {
+                        orderId: order.id,
+                        voucherId: voucherUse.shipVoucher.voucherId
+                    }
+                })
+                
+            }
+            if (voucherUse.productVoucher) {
+                const updateVoucher = await tx.voucher.updateMany({
+                    where: {
+                        AND: [
+                            {id: voucherUse.productVoucher.voucherId},
+                            {quantity: {gt: 0}},
+                            {status: 1},
+                            {startDate: {lte: new Date(orderDate)}},
+                            {endDate: {gte: new Date(orderDate)}}
+                        ]
+                    },
+                    data: {
+                        quantity: {decrement: 1}
+                    }
+                })
+                if (updateVoucher.count == 0) {
+                    throw new Error(`Không thể sử dụng voucher ${voucherUse.productVoucher.voucherCode}`)
+                }
+                const createProductVoucher = await tx.orderVoucher.create({
+                    data: {
+                        orderId: order.id,
+                        voucherId: voucherUse.productVoucher.voucherId
+                    }
+                })
+                if (voucherUse.productVoucher.productId.length > 0) {
+                    const productVariant = await tx.product.findMany({
+                        where: {
+                            id: {in: voucherUse.productVoucher.productId}
+                        },
+                        select: {
+                            productVariants: {
+                                select: {
+                                    id: true
+                                }
+                            }
+                        }
+                    })
+                    const productVariantId = productVariant.flatMap((item) => (item.productVariants.map((itemChild) => (itemChild.id))))
+                    for (const item of orderDetailArray) {
+                        if (productVariantId.includes(item.productVariantId ?? -1)) {
+                            const createVoucherOrderDetail = await tx.voucherOrderDetail.create({
+                                data: {
+                                    voucherId: voucherUse.productVoucher.voucherId,
+                                    orderDetailId: item.id
+                                }
+                            })
+                        }
+                    }
+                }
+            }
+        })
+        return success("Đặt hàng thành công", true);
+    } catch(e) {
+        console.log(e);
+        if (e instanceof Error) {
+            return({
+                message: e.message,
+                data: false,
+                code: 1
+            })
+        } else {
+            return serviceError
+        }
+    }
+}
+
+export const getOrderListService = async (accountId: number, status: number[], page: number): Promise<ReturnData> => {
+    try {
+        const size = 3;
+        const order = await prisma.order.findMany({
+            where: {
+                AND: [
+                    {accountId: accountId},
+                    {currentStatus: {in: status}}
+                ]
+            },
+            orderBy: {
+                id: "desc"
+            },
+            skip: (page - 1) * size,
+            take: size,
+            select: {
+                id: true,
+                orderDate: true,
+                currentStatus: true,
+                orderStatusHistories: {
+                    select: {
+                        id: true,
+                        statusId: true,
+                        date: true
+                    }
+                },
+                bills: {
+                    select: {
+                        status: true,
+                        total: true,
+                        paymentTime: true,
+                        paymentMethod: true
+                    }
+                },
+                orderDetails: {
+                    select: {
+                        productVariant: {
+                            select: {
+                                id: true,
+                                size: true,
+                                color: true,
+                                price: true,
+                                product: {
+                                    select: {
+                                        id: true,
+                                        name: true, 
+                                        productPromotions: {
+                                            select: {
+                                                promotion: {
+                                                    select: {
+                                                        percent: true
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        medias: {
+                                            select: {
+                                                url: true
+                                            },
+                                            take: 1
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        quantity: true
+                    }
+                }
+            }
+        })
+        const countOrder = await prisma.order.count({
+            where: {
+                AND: [
+                    {accountId: accountId},
+                    {currentStatus: {in: status}}
+                ]
+            }
+        })
+        const orderProcess: OrderData[] = order.map((item) => {
+            const price = item.orderDetails.map((itemChild) => (itemChild.productVariant?.price ?? -1))
+            const promotion = item.orderDetails.map((itemChild) => (itemChild.productVariant?.product?.productPromotions))
+            const percent = promotion.map((itemChild) => (itemChild && itemChild.length > 0 ? itemChild[0].promotion?.percent ?? 0 : 0))
+            return({
+                status: item.currentStatus ?? -1,
+                id: item.id,
+                orderDate: dayjs(item.orderDate).format("DD/MM/YYYY HH:mm"),
+                productId: item.orderDetails.map((itemChild) => (itemChild.productVariant?.product?.id ?? -1)),
+                productVariantId: item.orderDetails.map((itemChild) => (itemChild.productVariant?.id ?? -1)),
+                url: item.orderDetails.map((itemChild) => (itemChild.productVariant?.product?.medias[0].url ?? "")),
+                name: item.orderDetails.map((itemChild) => (itemChild.productVariant?.product?.name ?? "")),
+                price: price,
+                discount: percent.map((itemChild, indexChild) => (itemChild > 0 ? Math.round((price[indexChild] * ((100 - itemChild) / 100)) / 1000) * 1000 : 0)),
+                size: item.orderDetails.map((itemChild) => (itemChild.productVariant?.size ?? "")),
+                color: item.orderDetails.map((itemChild) => (itemChild.productVariant?.color ?? "")),
+                quantity: item.orderDetails.map((itemChild) => (itemChild.quantity)),
+                total: item.bills[0].total,
+                paymentTime: item.bills[0].paymentTime ? dayjs(item.bills[0].paymentTime).format("DD/MM/YYYY HH:mm") : null,
+                paymentMethod: item.bills[0].paymentMethod,
+                statusHistory: item.orderStatusHistories.map((itemChild) => (
+                    {
+                        id: itemChild.id,
+                        status: itemChild.statusId ?? -1,
+                        date: itemChild.date
+                    }
+                ))
+            })
+        })
+        return success("Thành công", {order: orderProcess, count: countOrder});
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+export const getOrderDetailService = async (accountId: number, orderId: number): Promise<ReturnData> => {
+    try {
+        const orderDetailRaw = await prisma.order.findUnique({
+            where: {
+                id: orderId
+            },
+            select: {
+                id: true,
+                orderDate: true,
+                currentStatus: true,
+                note: true,
+                total: true,
+                address: {
+                    select: {
+                        name: true,
+                        phoneNumber: true,
+                        address: true
+                    }
+                },
+                orderStatusHistories: {
+                    select: {
+                        id: true,
+                        statusId: true,
+                        date: true,
+                        note: true,
+                    }
+                },
+                orderVouchers: {
+                    select: {
+                        voucher: {
+                            select: {
+                                discountPercent: true,
+                                type: true
+                            }
+                        }
+                    }
+                },
+                bills: {
+                    select: {
+                        shippingFee: {
+                            select: {
+                                cost: true
+                            }
+                        },
+                        status: true,
+                        total: true,
+                        paymentTime: true,
+                        paymentMethod: true
+                    }
+                },
+                orderDetails: {
+                    select: {
+                        productVariant: {
+                            select: {
+                                id: true,
+                                size: true,
+                                color: true,
+                                price: true,
+                                product: {
+                                    select: {
+                                        id: true,
+                                        name: true, 
+                                        productPromotions: {
+                                            select: {
+                                                promotion: {
+                                                    select: {
+                                                        percent: true
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        medias: {
+                                            select: {
+                                                url: true
+                                            },
+                                            take: 1
+                                        }
+                                    }
+                                },
+                                feedbacks: {
+                                    where: {
+                                        AND: [
+                                            {accountId: accountId},
+                                            {status: 1}
+                                        ]
+                                    },
+                                    select: {
+                                        star: true
+                                    }
+                                }
+                            }
+                        },
+                        voucherOrderDetails: {
+                            select: {
+                                voucherCategory: {
+                                    select: {
+                                        voucherId: true
+                                    }
+                                }
+                            }
+                        },
+                        quantity: true
+                    }
+                }
+            }
+        })
+
+        if (!orderDetailRaw) {
+            return notFound;
+        }
+
+        const address: {name: string, phoneNumber: string, address: string} = orderDetailRaw.address;
+        const orderStatusHistories: {id: number, note: string | null, statusId: number | null, date: Date}[]= orderDetailRaw.orderStatusHistories;
+        const orderVouchers: {
+            voucher: {type: number, discountPercent: number} | null
+        }[] = orderDetailRaw.orderVouchers;
+        const bills: {
+            total: number, status: number, paymentMethod: number, paymentTime: Date | null, 
+            shippingFee: {cost: number} | null
+        } = orderDetailRaw.bills[0];
+        const orderDetails = orderDetailRaw.orderDetails;
+
+        const price = orderDetails.map((item) => (item.productVariant?.price ?? -1))
+        const promotion = orderDetails.map((item) => (item.productVariant?.product?.productPromotions))
+        const percent = promotion.map((item) => (item && item.length > 0 ? item[0].promotion?.percent ?? 0 : 0))
+        const discount = percent.map((item, index) => (item > 0 ? Math.round((price[index] * ((100 - item) / 100)) / 1000) * 1000 : 0))
+        const quantity = orderDetails.map((item) => (item.quantity))
+
+        const shippingFee = bills.shippingFee?.cost ?? 0;
+        let shipDiscount = 0;
+        let productDiscount = 0;
+        if (orderVouchers.length > 0) {
+            for (const item of orderVouchers) {
+                if (item.voucher) {
+                    if (item.voucher.type == 2) {
+                        const shipPercent = item.voucher.discountPercent;
+                        shipDiscount = Math.round(((shipPercent * shippingFee) / 100) / 1000) * 1000;
+                    } else {
+                        const productPercent = item.voucher.discountPercent;
+                        const typeProductVoucher = item.voucher.type;
+                        if (item.voucher.type == 1) {
+                            productDiscount = Math.round(((productPercent * orderDetailRaw.total) / 100) / 1000) * 1000;
+                        }
+                        if (item.voucher.type == 3) {
+                            let totalPriceDiscount = 0;
+                            for (let i = 0; i < orderDetails.length; i++) {
+                                if (orderDetails[i].voucherOrderDetails.length > 0) {
+                                    totalPriceDiscount = totalPriceDiscount + (discount[i] > 0 ? discount[i] : price[i])
+                                }
+                            }
+                            productDiscount = Math.round(((productPercent * totalPriceDiscount) / 100) / 1000) * 1000;
+                        }
+                    }
+                }
+            }
+        }
+        const processData: OrderDetailData = {
+            overallData: {
+                status: orderDetailRaw.currentStatus ?? -1,
+                id: orderDetailRaw.id,
+                orderDate: dayjs(orderDetailRaw.orderDate).format("DD/MM/YYYY HH:mm"),
+                productId: orderDetails.map((item) => (item.productVariant?.product?.id ?? -1)),
+                productVariantId: orderDetails.map((item) => (item.productVariant?.id ?? -1)),
+                url: orderDetails.map((item) => (item.productVariant?.product?.medias[0].url ?? "")),
+                name: orderDetails.map((item) => (item.productVariant?.product?.name ?? "")),
+                price: price,
+                discount: discount,
+                size: orderDetails.map((item) => (item.productVariant?.size ?? "")),
+                color: orderDetails.map((item) => (item.productVariant?.color ?? "")),
+                quantity: quantity,
+                total: bills.total,
+                paymentTime: bills.paymentTime ? dayjs(bills.paymentTime).format("DD/MM/YYYY HH:mm") : null,
+                paymentMethod: bills.paymentMethod,
+                statusHistory: orderStatusHistories.map((item) => (
+                    {
+                        id: item.id,
+                        status: item.statusId ?? -1,
+                        date: item.date
+                    }
+                ))   
+            },
+            star: orderDetails.map((item) => {
+                const feedbacks = item.productVariant?.feedbacks;
+                if (feedbacks && feedbacks.length > 0) {
+                    return feedbacks[0].star
+                } else {
+                    return null
+                }
+            }),
+            paymentStatus: bills.status,
+            orderNote: orderDetailRaw.note,
+            returnReason: orderDetailRaw.currentStatus == 5 ? orderStatusHistories.find((item) => (item.statusId == 5))?.note ?? null : null,
+            cancelReason: orderDetailRaw.currentStatus == 1 ? orderStatusHistories.find((item) => (item.statusId == 1))?.note ?? null : null,
+            address: address,
+            shippingFee: shippingFee,
+            shipDiscount: shipDiscount,
+            productDiscount: productDiscount
+        }
+        return success("Thành cồng", processData)
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+export const confirmReceiveProductService = async (orderId: number, now: string): Promise<ReturnData> => {
+    try {
+        const updateTransaction = await prisma.$transaction(async (tx) => {
+            const updateOrder = await tx.order.update({
+                where: {id: orderId},
+                data: {
+                    currentStatus: 6
+                }
+            })
+            if (!updateOrder) {
+                throw new Error("Không thể cập nhật trạng thái đơn hàng");
+            }
+            const createNewStatus = await tx.orderStatusHistory.create({
+                data: {
+                    orderId: orderId,
+                    statusId: 6,
+                    date: new Date(now)
+                }
+            })
+            if (!createNewStatus) {
+                throw new Error("Không thể lưu lịch sử trạng thái của đơn hàng");
+            }
+        })
+        return success("Xác nhận thành công", true);
+    } catch(e) {
+        console.log(e);
+        if (e instanceof Error) {
+            return({
+                message: e.message,
+                code: 1,
+                data: false
+            })
+        }
+        return serviceError
+    }
+}
+
+export const returnProductService = async (orderId: number, take: number, now: string, accountId: number, status: number[], reason: string, mode: string, productId: number[], productVariantId: number[], quantityOrder: number[]): Promise<ReturnData> => {
+    try {
+        const size = 3;
+        let nextRecord: OrderData[] = [];
+        if (take != -1) {
+            const nextPage = take + 1
+            const order = await prisma.order.findMany({
+                where: {
+                    AND: [
+                        {accountId: accountId},
+                        {currentStatus: {in: status}}
+                    ]
+                },
+                orderBy: {
+                    id: "desc"
+                },
+                skip: (nextPage - 1) * size,
+                take: 1,
+                select: {
+                    id: true,
+                    orderDate: true,
+                    currentStatus: true,
+                    orderStatusHistories: {
+                        select: {
+                            id: true,
+                            statusId: true,
+                            date: true
+                        }
+                    },
+                    bills: {
+                        select: {
+                            status: true,
+                            total: true,
+                            paymentTime: true,
+                            paymentMethod: true
+                        }
+                    },
+                    orderDetails: {
+                        select: {
+                            productVariant: {
+                                select: {
+                                    id: true,
+                                    size: true,
+                                    color: true,
+                                    price: true,
+                                    product: {
+                                        select: {
+                                            id: true,
+                                            name: true, 
+                                            productPromotions: {
+                                                select: {
+                                                    promotion: {
+                                                        select: {
+                                                            percent: true
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            medias: {
+                                                select: {
+                                                    url: true
+                                                },
+                                                take: 1
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            quantity: true
+                        }
+                    }
+                }
+            })
+            nextRecord = order.map((item) => {
+                const price = item.orderDetails.map((itemChild) => (itemChild.productVariant?.price ?? -1))
+                const promotion = item.orderDetails.map((itemChild) => (itemChild.productVariant?.product?.productPromotions))
+                const percent = promotion.map((itemChild) => (itemChild && itemChild.length > 0 ? itemChild[0].promotion?.percent ?? 0 : 0))
+                return({
+                    status: item.currentStatus ?? -1,
+                    id: item.id,
+                    orderDate: dayjs(item.orderDate).format("DD/MM/YYYY HH:mm"),
+                    productId: item.orderDetails.map((itemChild) => (itemChild.productVariant?.product?.id ?? -1)),
+                    productVariantId: item.orderDetails.map((itemChild) => (itemChild.productVariant?.id ?? -1)),
+                    url: item.orderDetails.map((itemChild) => (itemChild.productVariant?.product?.medias[0].url ?? "")),
+                    name: item.orderDetails.map((itemChild) => (itemChild.productVariant?.product?.name ?? "")),
+                    price: price,
+                    discount: percent.map((itemChild, indexChild) => (itemChild > 0 ? Math.round((price[indexChild] * ((100 - itemChild) / 100)) / 1000) * 1000 : 0)),
+                    size: item.orderDetails.map((itemChild) => (itemChild.productVariant?.size ?? "")),
+                    color: item.orderDetails.map((itemChild) => (itemChild.productVariant?.color ?? "")),
+                    quantity: item.orderDetails.map((itemChild) => (itemChild.quantity)),
+                    total: item.bills[0].total,
+                    paymentTime: item.bills[0].paymentTime ? dayjs(item.bills[0].paymentTime).format("DD/MM/YYYY HH:mm") : null,
+                    paymentMethod: item.bills[0].paymentMethod,
+                    statusHistory: item.orderStatusHistories.map((itemChild) => (
+                        {
+                            id: itemChild.id,
+                            status: itemChild.statusId ?? -1,
+                            date: itemChild.date
+                        }
+                    ))
+                })
+            })
+        }
+
+        const updateOrderTransaction = await prisma.$transaction(async (tx) => {
+            const updateOrder = await tx.order.update({
+                where: {id: orderId},
+                data: {
+                    currentStatus: mode == "return" ? 5 : 1
+                }
+            })
+
+            if (!updateOrder) {
+                throw new Error("Không thể cập nhật trạng thái đơn hàng")
+            }
+
+            const createHistoryStatus = await tx.orderStatusHistory.create({
+                data: {
+                    orderId: orderId,
+                    statusId: mode == "return" ? 5 : 1,
+                    date: new Date(now),
+                    note: reason
+                }
+            })
+
+            if (!createHistoryStatus) {
+                throw new Error("Không thể tạo lịch sử trạng thái đơn hàng");
+            }
+
+            for (const item of productId) {
+                const createUserBehavior = await tx.userBehavior.create({
+                    data: {
+                        accountId: accountId,
+                        productId: item,
+                        behaviorType: 9,
+                        time: new Date(now)
+                    }
+                })
+
+                if (!createUserBehavior) {
+                    throw new Error("Không thể thêm hành vi người dùng");
+                }
+
+                const updateStatusProduct = await tx.product.updateMany({
+                    where: {
+                        AND: [
+                            {id: item},
+                            {status: 3}
+                        ]
+                    },
+                    data: {
+                        status: 1
+                    }
+                })
+            }
+            
+            for (let i = 0; i < productVariantId.length; i++) {
+                const updateVariant = await tx.productVariant.updateMany({
+                    where: {
+                        AND: [
+                            {id: productVariantId[i]}
+                        ]
+                    },
+                    data: {
+                        quantity: {increment: quantityOrder[i]}
+                    }
+                })
+                if (updateVariant.count == 0) {
+                    throw new Error("Không thể cập nhật số lượng sản phẩm")
+                }
+            }
+        })
+        return success(`${mode == "return" ? "Trả hàng" : "Hủy đơn"} thành công`, nextRecord);
+    } catch(e) {
+        console.log(e);
+        if (e instanceof Error) {
+            return({
+                message: e.message,
+                data: false,
+                code: 1
+            })
+        }
         return serviceError;
     }
 }

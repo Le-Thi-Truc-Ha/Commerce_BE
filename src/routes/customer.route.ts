@@ -26,5 +26,10 @@ customerRoute.post("/get-product-detail-modal", customerController.getProductDet
 customerRoute.post("/update-variant-in-cart", customerController.updateVariantInCartController);
 customerRoute.post("/get-address-and-fee", customerController.getAddressAndFeeController);
 customerRoute.post("/get-voucher", customerController.getVoucherController);
+customerRoute.post("/order-product", customerController.orderProductController);
+customerRoute.post("/get-order-list", customerController.getOrderListController);
+customerRoute.post("/get-order-detail", customerController.getOrderDetailController);
+customerRoute.post("/confirm-receive-product", customerController.confirmReceiveProductController);
+customerRoute.post("/return-product", customerController.returnProductController);
 
 export default customerRoute;

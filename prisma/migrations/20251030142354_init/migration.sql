@@ -197,7 +197,7 @@ CREATE TABLE "public"."OrderStatusHistory" (
     "orderId" INTEGER,
     "statusId" INTEGER,
     "date" TIMESTAMP(3) NOT NULL,
-    "note" TEXT NOT NULL,
+    "note" TEXT,
 
     CONSTRAINT "OrderStatusHistory_pkey" PRIMARY KEY ("id")
 );
@@ -249,9 +249,9 @@ CREATE TABLE "public"."Bill" (
     "orderId" INTEGER,
     "shippingFeeId" INTEGER,
     "status" INTEGER NOT NULL,
-    "paymentMethod" TEXT NOT NULL,
-    "invoiceTime" TIMESTAMP(3) NOT NULL,
-    "paymentTime" TIMESTAMP(3) NOT NULL,
+    "paymentMethod" INTEGER NOT NULL,
+    "invoiceTime" TIMESTAMP(3),
+    "paymentTime" TIMESTAMP(3),
     "total" INTEGER NOT NULL,
 
     CONSTRAINT "Bill_pkey" PRIMARY KEY ("id")

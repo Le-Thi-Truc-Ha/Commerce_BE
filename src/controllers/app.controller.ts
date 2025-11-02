@@ -278,11 +278,18 @@ export const checkUpdateCartController = async (req: Request, res: Response): Pr
 
 export const findValueController = async (req: Request, res: Response): Promise<any> => {
     try {
-        const {findValue, productId, currentPage} = req.body;
-        if (!findValue || !currentPage) {
+        const {accountId, findValue, productId, currentPage} = req.body;
+        if (!accountId || !findValue || !currentPage) {
             return res.status(200).json(dataError);
         }
-        const result: ReturnData = await appService.findValueService(findValue, productId, currentPage, req.user?.accountId ?? -1);
+
+        let sessionKey = undefined;
+        if (accountId == -1) {
+            const authHeader = req.headers["authorization"];
+            sessionKey = authHeader && authHeader.split(" ")[1];
+        }
+
+        const result: ReturnData = await appService.findValueService(findValue, productId, currentPage, req.user?.accountId ?? -1, sessionKey);
         returnController(result, res);
     } catch(e) {
         console.log(e);
