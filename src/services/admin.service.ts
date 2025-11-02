@@ -7,15 +7,26 @@ const getRecentOrders = async (): Promise<ReturnData> => {
         const orders = await prisma.order.findMany({
             take: 10,
             orderBy: { orderDate: "desc"},
-            include: { account: { select: { fullName: true }} },
+            select: {
+                id: true,
+                total: true,
+                orderDate: true,
+                orderStatus: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                account: { select: { fullName: true } }
+            }
         });
 
         const data = orders.map(o => ({
             id: o.id,
-            accountName: o.account?.fullName ?? "",
+            accountName: o.account?.fullName,
             total: o.total,
             orderDate: o.orderDate.toString(),
-            currentStatus: o.currentStatus,
+            currentStatus: o.orderStatus?.name,
         }));
         return { 
             message: "Lấy danh sách đơn hàng gần đây thành công!",
@@ -81,8 +92,8 @@ const getCategoriesSale = async (): Promise<ReturnData> => {
         >`
             SELECT
                 c."id",
-                c."name" AS category_name,
-                COALESCE(SUM(o."total"), 0) AS total_revenue
+                c."name" AS name,
+                COALESCE(SUM(o."total"), 0) AS value
             FROM "Categories" c
             LEFT JOIN "Product" p ON c."id" = p."categoryId"
             LEFT JOIN "ProductVariant" pv ON p."id" = pv."productId"
@@ -90,7 +101,6 @@ const getCategoriesSale = async (): Promise<ReturnData> => {
             LEFT JOIN "Order" o ON od."orderId" = o."id"
             WHERE o."currentStatus" = 6
             GROUP BY c."id", c."name"
-            ORDER BY total_revenue DESC
             LIMIT 10;
         `;
 
@@ -954,7 +964,10 @@ const updateStatus = async (id: number, status: number, note?: string): Promise<
         if (order.bills[0].paymentMethod === 2) {
             await prisma.bill.update({
                 where: { id: order.bills[0].id },
-                data: { paymentTime: new Date() }
+                data: { 
+                    paymentTime: new Date(),
+                    status: 1 
+                }
             });
         }
 
