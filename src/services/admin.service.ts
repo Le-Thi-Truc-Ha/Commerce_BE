@@ -88,7 +88,7 @@ const getCategoriesSale = async (): Promise<ReturnData> => {
             LEFT JOIN "ProductVariant" pv ON p."id" = pv."productId"
             LEFT JOIN "OrderDetail" od ON pv."id" = od."productVariantId"
             LEFT JOIN "Order" o ON od."orderId" = o."id"
-            WHERE o."status" = 4
+            WHERE o."currentStatus" = 6
             GROUP BY c."id", c."name"
             ORDER BY total_revenue DESC
             LIMIT 10;
@@ -948,8 +948,16 @@ const updateStatus = async (id: number, status: number, note?: string): Promise<
             await prisma.bill.update({
                 where: { id: order.bills[0].id },
                 data: { invoiceTime: new Date() }
-            })
+            });
         } 
+
+        if (order.bills[0].paymentMethod === 2) {
+            await prisma.bill.update({
+                where: { id: order.bills[0].id },
+                data: { paymentTime: new Date() }
+            });
+        }
+
         
         return {
             message: "Cập nhật trạng thái đơn hàng thành công!",
