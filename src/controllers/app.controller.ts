@@ -7,6 +7,11 @@ import { v1 as uuidv1 } from "uuid";
 import { redis } from "../configs/redis";
 import { updateQuantityCartService } from "../services/customer.service";
 
+export const awakeBackendController = (req: Request, res: Response): any => {
+    console.log("Awake Backend");
+    return res.status(200).send("Awake Success");
+}
+
 export const reloadPageController = async (req: Request, res: Response): Promise<any> => {
     try {
         const authHeader = req.headers["authorization"];
@@ -290,6 +295,30 @@ export const findValueController = async (req: Request, res: Response): Promise<
         }
 
         const result: ReturnData = await appService.findValueService(findValue, productId, currentPage, req.user?.accountId ?? -1, sessionKey);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const getRateController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {productId, filter, page} = req.body;
+        if (!productId || filter == undefined || page == undefined) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await appService.getRateService(productId, filter, page);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const confirmReceiveProductController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const result: ReturnData = await appService.confirmReceiveProductService();
         returnController(result, res);
     } catch(e) {
         console.log(e);

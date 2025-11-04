@@ -5,6 +5,7 @@ import { sendEmail } from "../configs/email";
 import { redis } from "../configs/redis";
 import { Prisma } from "@prisma/client";
 import { v1 as uuidv1 } from "uuid"; 
+import dayjs from "dayjs";
 
 //Phải chuyển dữ liệu datetime về dạng string ở format "YYYY-MM-DDTHH:mm:ss" hoặc iso string ở fe để gửi lên be, sau đó ở be chuyển thành Date và lưu db
 //dob.toLocaleString("vi-VN"): Lệnh này để chuyển dữ liệu kiểu datetime lấy từ db về dạng ngày tháng năm thời gian
@@ -569,51 +570,23 @@ export const getProductDetailService = async (accountId: number, productId: numb
                 }
             }
         })
-        const rateSize = 4;
-        let rate: any[] = [];
-        if (pageRate == 1) {
-            const myRate = await prisma.feedback.findFirst({
-                where: {
-                    AND: [
-                        {status: 1},
-                        {accountId: accountId}
-                    ]
-                },
-                select: {
-                    id: true,
-                    feeedbackDate: true,
-                    star: true,
-                    content: true,
-                    account: {
-                        select: {
-                            id: true,
-                            email: true
-                        }
-                    },
-                    medias: {
-                        select: {
-                            url: true
-                        }
-                    }
-                }
-            })
-            rate = [myRate, ...rate]
-        }
-        const lengthRemains = rateSize - rate.length;
-        const otherRate = await prisma.feedback.findMany({
+        const rateSize = 3;
+        const rate = await prisma.feedback.findMany({
             where: {
                 AND: [
                     {status: 1},
                     {
-                        accountId: {notIn: [accountId]}
+                        productVariant: {
+                            productId: productId
+                        }
                     }
                 ]
             },
             orderBy: {
                 id: "asc"
             },
-            skip: pageRate == 1 ? lengthRemains : (pageRate - 1) * rateSize,
-            take: lengthRemains,
+            skip: (pageRate - 1) * rateSize,
+            take: rateSize,
             select: {
                 id: true,
                 feeedbackDate: true,
@@ -634,12 +607,12 @@ export const getProductDetailService = async (accountId: number, productId: numb
                 },
                 medias: {
                     select: {
-                        url: true
+                        url: true,
+                        type: true
                     }
                 }
             }
         })
-        rate = [...rate, ...otherRate]
         const count = await prisma.feedback.count({
             where: {
                 AND: [
@@ -842,6 +815,136 @@ export const findValueService = async (findValue: string, productId: number[] | 
             }
         }
         return success("Thành công", {product: productInPage, productId: existProductId, uuid: uuid})
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+export const getRateService = async (productId: number, filter: number, page: number): Promise<ReturnData> => {
+    try {
+        const rateSize = 3;
+        const rate = await prisma.feedback.findMany({
+            where: {
+                AND: filter == 0 ? [
+                    {status: 1},
+                    {
+                        productVariant: {
+                            productId: productId
+                        }
+                    }
+                ] : [
+                    {status: 1},
+                    {star: filter},
+                    {
+                        productVariant: {
+                            productId: productId
+                        }
+                    }
+                ]
+            },
+            orderBy: {
+                id: "asc"
+            },
+            skip: (page - 1) * rateSize,
+            take: rateSize,
+            select: {
+                id: true,
+                feeedbackDate: true,
+                star: true,
+                content: true,
+                account: {
+                    select: {
+                        id: true,
+                        email: true
+                    }
+                },
+                productVariant: {
+                    select: {
+                        id: true,
+                        size: true,
+                        color: true
+                    }
+                },
+                medias: {
+                    select: {
+                        url: true,
+                        type: true
+                    }
+                }
+            }
+        })
+        const count = await prisma.feedback.count({
+            where: {
+                AND: filter == 0 ? [
+                    {status: 1},
+                    {
+                        productVariant: {
+                            productId: productId
+                        }
+                    }
+                ] : [
+                    {status: 1},
+                    {star: filter},
+                    {
+                        productVariant: {
+                            productId: productId
+                        }
+                    }
+                ]
+            }
+        })
+        return success("Thành công", {rate, count});
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+export const confirmReceiveProductService = async (): Promise<ReturnData> => {
+    try {
+        const orderNotConfirm = await prisma.order.findMany({
+            where: {
+                currentStatus: 4
+            },
+            select: {
+                id: true,
+                orderDate: true
+            }
+        })
+        const orderHaveConfirmId: number[] = [];
+        for (const item of orderNotConfirm) {
+            const threeNextDay = dayjs(item.orderDate).add(3, "day")
+            if (threeNextDay.isBefore(dayjs(), "day") || threeNextDay.isSame(dayjs(), "day")) {
+                orderHaveConfirmId.push(item.id)
+            }
+        }
+        const updateTransaction = await prisma.$transaction(async (tx) => {
+            const updateOrder = await tx.order.updateMany({
+                where: {id: {in: orderHaveConfirmId}},
+                data: {
+                    currentStatus: 6
+                }
+            })
+            if (updateOrder.count == 0 && orderHaveConfirmId.length != 0) {
+                throw new Error("Không thể cập nhật trạng thái đơn hàng");
+            }
+            const createHistory = await Promise.all(
+                orderHaveConfirmId.map(async (item) => (
+                    await tx.orderStatusHistory.create({
+                        data: {
+                            orderId: item,
+                            statusId: 6,
+                            date: new Date()
+                        }
+                    })
+                ))
+            )
+            if (createHistory.length == 0 && orderHaveConfirmId.length != 0) {
+                throw new Error("Xảy ra lỗi khi lưu lịch sử trạng thái đơn hàng")
+            }
+        })
+        return serviceError;
     } catch(e) {
         console.log(e);
         return serviceError;

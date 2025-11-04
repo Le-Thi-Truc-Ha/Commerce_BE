@@ -3,6 +3,7 @@ import { checkLogin, checkPermission } from "../middleware/jwt";
 import { uploadCloud } from "../middleware/upload.middleware";
 import adminController from "../controllers/admin.controller";
 import multer from "multer";
+import { savePasswordController } from "../controllers/customer.controller";
 
 const adminRoute = express.Router();
 const upload = multer();
@@ -69,5 +70,7 @@ adminRoute.delete("/delete-category", adminController.deleteCategoryController);
 
 /** Quản lý phản hồi */
 adminRoute.get("/feedbacks", adminController.getAllFeedbacksController);
+
+adminRoute.post("/save-password", savePasswordController);
 
 export default adminRoute;

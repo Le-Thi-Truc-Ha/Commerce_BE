@@ -2,7 +2,9 @@ import { compare, genSalt, hash } from "bcrypt-ts";
 import { notFound, prisma, productInfomation, ReturnData, serviceError, success } from "../interfaces/app.interface";
 import { AddressInformation, CartProduct, OrderData, OrderDetailData, UserInformation, VoucherUse } from "../interfaces/customer.interface";
 import dayjs from "dayjs";
-import { dmmfToRuntimeDataModel } from "@prisma/client/runtime/edge";
+import { v2 as cloudinary } from "cloudinary";
+import { v4 as uuidv4 } from "uuid";
+import { Prisma } from "@prisma/client";
 
 export const getAccountInformationService = async (accountId: number): Promise<ReturnData> => {
     try {
@@ -1250,6 +1252,7 @@ export const orderProductService = async (
                         quantity: {decrement: item.quantityOrder}
                     }
                 })
+                
                 if (updateProductVariant.length == 0) {
                     throw new Error(`Sản phẩm ${item.name} hiện không thể đặt hàng`)
                 } else {
@@ -1265,6 +1268,23 @@ export const orderProductService = async (
                         `
                     }
                 }
+
+                const updateProductFigure = await tx.product.updateMany({
+                    where: {
+                        AND: [
+                            {id: item.productId},
+                            {status: 1}
+                        ]
+                    },
+                    data: {
+                        saleFigure: {increment: item.quantityOrder}
+                    }
+                })
+
+                if (updateProductFigure.count == 0) {
+                    throw new Error(`Xảy ra lỗi khi cập nhập số lượt bán của sản phẩm ${item.name}`)
+                }
+
                 const createOrderDetail = await tx.orderDetail.create({
                     data: {
                         productVariantId: item.productVariantId,
@@ -1405,6 +1425,17 @@ export const getOrderListService = async (accountId: number, status: number[], p
                 id: true,
                 orderDate: true,
                 currentStatus: true,
+                feedbacks: {
+                    where: {
+                        AND: [
+                            {accountId: accountId},
+                            {status: 1}
+                        ]
+                    },
+                    select: {
+                        id: true
+                    }
+                },
                 orderStatusHistories: {
                     select: {
                         id: true,
@@ -1484,6 +1515,7 @@ export const getOrderListService = async (accountId: number, status: number[], p
                 total: item.bills[0].total,
                 paymentTime: item.bills[0].paymentTime ? dayjs(item.bills[0].paymentTime).format("DD/MM/YYYY HH:mm") : null,
                 paymentMethod: item.bills[0].paymentMethod,
+                feedback: item.feedbacks.length > 0 ? true : false,
                 statusHistory: item.orderStatusHistories.map((itemChild) => (
                     {
                         id: itemChild.id,
@@ -1517,6 +1549,18 @@ export const getOrderDetailService = async (accountId: number, orderId: number):
                         name: true,
                         phoneNumber: true,
                         address: true
+                    }
+                },
+                feedbacks: {
+                    where: {
+                        AND: [
+                            {accountId: accountId},
+                            {status: 1}
+                        ]
+                    },
+                    select: {
+                        id: true,
+                        star: true
                     }
                 },
                 orderStatusHistories: {
@@ -1577,17 +1621,6 @@ export const getOrderDetailService = async (accountId: number, orderId: number):
                                             },
                                             take: 1
                                         }
-                                    }
-                                },
-                                feedbacks: {
-                                    where: {
-                                        AND: [
-                                            {accountId: accountId},
-                                            {status: 1}
-                                        ]
-                                    },
-                                    select: {
-                                        star: true
                                     }
                                 }
                             }
@@ -1673,6 +1706,7 @@ export const getOrderDetailService = async (accountId: number, orderId: number):
                 total: bills.total,
                 paymentTime: bills.paymentTime ? dayjs(bills.paymentTime).format("DD/MM/YYYY HH:mm") : null,
                 paymentMethod: bills.paymentMethod,
+                feedback: orderDetailRaw.feedbacks.length > 0 ? true : false,
                 statusHistory: orderStatusHistories.map((item) => (
                     {
                         id: item.id,
@@ -1681,13 +1715,8 @@ export const getOrderDetailService = async (accountId: number, orderId: number):
                     }
                 ))   
             },
-            star: orderDetails.map((item) => {
-                const feedbacks = item.productVariant?.feedbacks;
-                if (feedbacks && feedbacks.length > 0) {
-                    return feedbacks[0].star
-                } else {
-                    return null
-                }
+            star: orderDetailRaw.feedbacks.map((item) => {
+                return item.star
             }),
             paymentStatus: bills.status,
             orderNote: orderDetailRaw.note,
@@ -1764,6 +1793,18 @@ export const returnProductService = async (orderId: number, take: number, now: s
                     id: true,
                     orderDate: true,
                     currentStatus: true,
+                    feedbacks: {
+                        where: {
+                            AND: [
+                                {accountId: accountId},
+                                {status: 1}
+                            ]
+                        },
+                        select: {
+                            id: true,
+                            star: true
+                        }
+                    },
                     orderStatusHistories: {
                         select: {
                             id: true,
@@ -1835,6 +1876,7 @@ export const returnProductService = async (orderId: number, take: number, now: s
                     total: item.bills[0].total,
                     paymentTime: item.bills[0].paymentTime ? dayjs(item.bills[0].paymentTime).format("DD/MM/YYYY HH:mm") : null,
                     paymentMethod: item.bills[0].paymentMethod,
+                    feedback: item.feedbacks.length > 0 ? true : false,
                     statusHistory: item.orderStatusHistories.map((itemChild) => (
                         {
                             id: itemChild.id,
@@ -1847,15 +1889,73 @@ export const returnProductService = async (orderId: number, take: number, now: s
         }
 
         const updateOrderTransaction = await prisma.$transaction(async (tx) => {
-            const updateOrder = await tx.order.update({
-                where: {id: orderId},
+            const updateOrder = await tx.order.updateMany({
+                where: {
+                    AND: [
+                        {id: orderId},
+                        {currentStatus: {in: status}}
+                    ]
+                },
                 data: {
                     currentStatus: mode == "return" ? 5 : 1
                 }
             })
 
-            if (!updateOrder) {
+            if (updateOrder.count == 0) {
                 throw new Error("Không thể cập nhật trạng thái đơn hàng")
+            }
+
+            const updateFeedback = await tx.feedback.updateManyAndReturn({
+                where: {
+                    AND: [
+                        {orderId: orderId},
+                        {status: 1}
+                    ]
+                },
+                data: {
+                    status: 2
+                }
+            })
+
+            const deleteFeedbackId = updateFeedback.map((i) => (i.id))
+            const medias = await tx.media.findMany({
+                where: {
+                    feedbackId: {in: deleteFeedbackId}
+                },
+                select: {
+                    feedbackId: true,
+                    url: true,
+                    type: true
+                }
+            })
+
+            if (updateFeedback.length != 0) {
+                const updateProductStar = await tx.$executeRaw`
+                    update "Product"
+                    set "rateStar" = coalesce(cal."avgStar", 0)
+                    from (
+                        select v."productId", avg(f."star") as "avgStar"
+                        from "ProductVariant" as v
+                        left join "Feedback" as f on f."productVariantId" = v.id and f.status = 1
+                        where v."productId" in (${Prisma.join(productId)})
+                        group by v."productId"
+                    ) as cal
+                    where "Product".id = cal."productId"
+                `
+
+                if (updateProductStar == 0) {
+                    throw new Error("Xảy ra lỗi khi cập nhật đánh giá sản phẩm");
+                }
+
+                const deleteMedias = await tx.media.deleteMany({
+                    where: {
+                        feedbackId: {in: deleteFeedbackId}
+                    }
+                })
+
+                if (deleteMedias.count != medias.length) {
+                    throw new Error("Xảy ra lỗi khi xóa các file")
+                }
             }
 
             const createHistoryStatus = await tx.orderStatusHistory.create({
@@ -1912,8 +2012,30 @@ export const returnProductService = async (orderId: number, take: number, now: s
                 if (updateVariant.count == 0) {
                     throw new Error("Không thể cập nhật số lượng sản phẩm")
                 }
+
+                const updateProductFigure = await tx.product.updateMany({
+                    where: {
+                        AND: [
+                            {id: productId[i]},
+                            {status: 1}
+                        ]
+                    },
+                    data: {
+                        saleFigure: {decrement: quantityOrder[i]}
+                    }
+                })
+
+                if (updateProductFigure.count == 0) {
+                    throw new Error(`Xảy ra lỗi khi cập nhập số lượt bán của sản phẩm`)
+                }
             }
+
+            return medias;
         })
+        for (const item of updateOrderTransaction) {
+            const publicId = `Commerce/Feedback/${item.feedbackId}/${item.url.split("/").pop()?.split(".")[0]}`
+            await deleteFromCloudinary(publicId, item.type == 1 ? "image" : "video")
+        }
         return success(`${mode == "return" ? "Trả hàng" : "Hủy đơn"} thành công`, nextRecord);
     } catch(e) {
         console.log(e);
@@ -1922,6 +2044,432 @@ export const returnProductService = async (orderId: number, take: number, now: s
                 message: e.message,
                 data: false,
                 code: 1
+            })
+        }
+        return serviceError;
+    }
+}
+
+export const uploadToCloudinary = (fileBuffer: Buffer, folder: string, publicId: string, type: "video" | "image") => {
+    return new Promise<any>((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            {folder: folder, public_id: publicId, resource_type: type},
+            (error, result) => {
+                if (error) {
+                    reject(error)
+                } else {
+                    resolve(result)
+                }
+            }
+        );
+        stream.end(fileBuffer);
+    });
+};
+
+export const deleteFromCloudinary = async (publicId: string, type: "video" | "image") => {
+    try {
+        const result = await cloudinary.uploader.destroy(publicId, {
+            resource_type: type,
+        });
+        return result;
+    } catch (e) {
+        console.log(e);
+        throw e;
+    }
+}
+
+export const sendFeedbackService = async (accountId: number, productIds: number[], productVariantIds: number[], now: string, stars: number[], contents: string, filesRaw: any, orderId: number): Promise<ReturnData> => {
+    try {
+        const feedbackTransaction = await prisma.$transaction(async (tx) => {
+            const createFeedbacks = await Promise.all(
+                productVariantIds.map(async (item, index) => {
+                    return await tx.feedback.create({
+                        data: {
+                            accountId: accountId,
+                            productVariantId: item,
+                            content: contents[index],
+                            feeedbackDate: new Date(now),
+                            star: stars[index],
+                            status: 1,
+                            orderId: orderId
+                        }
+                    })
+                })
+            )
+            if (createFeedbacks.length == 0) {
+                throw new Error("Xảy ra lỗi khi tạo đánh giá")
+            }
+
+            const updateProductStar = await tx.$executeRaw`
+                update "Product"
+                set "rateStar" = coalesce(cal."avgStar", 0)
+                from (
+                    select v."productId", avg(f."star") as "avgStar"
+                    from "ProductVariant" as v
+                    left join "Feedback" as f on f."productVariantId" = v.id and f.status = 1
+                    where v."productId" in (${Prisma.join(productIds)})
+                    group by v."productId"
+                ) as cal
+                where "Product".id = cal."productId"
+            `
+
+            if (updateProductStar == 0) {
+                throw new Error("Xảy ra lỗi khi cập nhật đánh giá sản phẩm");
+            }
+
+            const createUserBehavior = await Promise.all(
+                productIds.map(async (productId, index) => {
+                    const result = await tx.userBehavior.create({
+                        data: {
+                            accountId: accountId,
+                            productId: productId,
+                            behaviorType: stars[index] + 10,
+                            time: new Date(now)
+                        }
+                    })
+                    return result;
+                })
+            )
+
+            if (createUserBehavior.find((item) => (!item))) {
+                throw new Error("Xảy ra lỗi khi lưu lịch sử hoạt động")
+            }
+            return createFeedbacks
+        }, {timeout: 20000})
+
+        const files = filesRaw as Express.Multer.File[] || [];
+        let mediaMap: Record<string, {type: number; url: string; publicId: string}[]> = {}
+        if (files.length > 0) {
+            await Promise.all(
+                files.map(async (file) => {
+                    const productVariantId = parseInt(file.fieldname.split("=")[1]);
+                    const feedbackId = feedbackTransaction.find((item) => (item.productVariantId == productVariantId))?.id ?? -1;
+                    const fileBuffer = (file as any).buffer;
+                    const folder = `Commerce/Feedback/${feedbackId}`;
+                    const uniqueId = uuidv4();
+                    const newName = `${Date.now()}-${uniqueId}`
+                    const result = await uploadToCloudinary(fileBuffer as Buffer, folder, newName, file.mimetype.startsWith("video") ? "video" : "image");
+
+                    const type = file.mimetype.startsWith("video") ? 2 : 1;
+
+                    if (!mediaMap[file.fieldname]) {
+                        mediaMap[file.fieldname] = [];
+                    }
+
+                    mediaMap[file.fieldname].push({
+                        type,
+                        url: result.secure_url,
+                        publicId: result.public_id
+                    });
+                })
+            );
+        }
+        if (files.length > 0 && Object.keys(mediaMap).length == 0) {
+            throw new Error("Xảy ra lỗi khi upload hình ảnh và video");
+        }
+        for (const [key, mediaList] of Object.entries(mediaMap)) {
+            const productVariantId = parseInt(key.split("=")[1]);
+            const feedbackId = feedbackTransaction.find((item) => (item.productVariantId == productVariantId))?.id ?? null;
+            if (feedbackId) {
+                const createMedia = await Promise.all(
+                    mediaList.map(async (item) => (
+                        await prisma.media.create({
+                            data: {
+                                url: item.url,
+                                type: item.type,
+                                feedbackId: feedbackId
+                            }
+                        })
+                    ))
+                )
+                if (mediaList.length != createMedia.length) {
+                    throw new Error("Xảy ra lỗi khi lưu hình ảnh và video");
+                }
+            }
+        }
+        return success("Đánh giá sản phẩm thành công", true);
+    } catch(e) {
+        console.log(e);
+        if (e instanceof Error) {
+            return({
+                message: e.message,
+                data: false,
+                code: 1
+            })
+        }
+        return serviceError;
+    }
+}
+
+export const getFeedbackOrderService = async (orderId: number, accountId: number): Promise<ReturnData> => {
+    try {
+        const feedback = await prisma.order.findUnique({
+            where: {id: orderId},
+            select: {
+                feedbacks: {
+                    where: {
+                        AND: [
+                            {status: 1},
+                            {accountId: accountId}
+                        ]
+                    },
+                    select: {
+                        id: true,
+                        content: true,
+                        star: true,
+                        productVariantId: true,
+                        medias: {
+                            select: {
+                                id: true,
+                                url: true,
+                                type: true
+                            }
+                        }
+                    }
+                }
+            }
+        })
+
+        return success("Thành công", feedback);
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+export const updateFeedbackService = async (accountId: number, productIds: number[], productVariantIds: number[], now: string, stars: number[], contents: string, filesRaw: any, orderId: number, removeMedias: number[], feedbackIds: number[], firstRates: number[]): Promise<ReturnData> => {
+    try {
+        const feedbackTransaction = await prisma.$transaction(async (tx) => {
+            const updateFeedbacks = await Promise.all(
+                feedbackIds.map(async (item, index) => {
+                    return await tx.feedback.updateManyAndReturn({
+                        where: {
+                            id: item
+                        },
+                        data: {
+                            content: contents[index],
+                            feeedbackDate: new Date(now),
+                            star: stars[index]
+                        }
+                    })
+                })
+            )
+            if (updateFeedbacks.length == 0) {
+                throw new Error("Xảy ra lỗi khi tạo đánh giá")
+            }
+
+            const updateProductStar = await tx.$executeRaw`
+                update "Product"
+                set "rateStar" = coalesce(cal."avgStar", 0)
+                from (
+                    select v."productId", avg(f."star") as "avgStar"
+                    from "ProductVariant" as v
+                    left join "Feedback" as f on f."productVariantId" = v.id and f.status = 1
+                    where v."productId" in (${Prisma.join(productIds)})
+                    group by v."productId"
+                ) as cal
+                where "Product".id = cal."productId"
+            `
+
+            if (updateProductStar == 0) {
+                throw new Error("Xảy ra lỗi khi cập nhật đánh giá sản phẩm");
+            }
+
+            await Promise.all(
+                productIds.map(async (productId, index) => {
+                    if (firstRates[index] != stars[index]) {
+                        const result = await tx.userBehavior.create({
+                            data: {
+                                accountId: accountId,
+                                productId: productId,
+                                behaviorType: firstRates[index] < stars[index] ? (stars[index] - firstRates[index]) + 10 : (stars[index] - firstRates[index]) - 10,
+                                time: new Date(now)
+                            }
+                        })
+                    }
+                })
+            )
+
+            const url: {feedbackId: number, url: string, type: number}[] = [];
+            for (const item of removeMedias) {
+                const result = await tx.media.delete({
+                    where: {id: item}
+                })
+                url.push({feedbackId: result?.feedbackId ?? -1, url: result.url, type: result.type});
+            }
+
+            return {updateFeedbacks, url}
+        }, {timeout: 20000})
+
+        if (feedbackTransaction.url.length > 0) {
+            for (const item of feedbackTransaction.url) {
+                const publicId = `Commerce/Feedback/${item.feedbackId}/${item.url.split("/").pop()?.split(".")[0]}`
+                await deleteFromCloudinary(publicId, item.type == 1 ? "image" : "video")
+            }
+        }
+
+        const files = filesRaw as Express.Multer.File[] || [];
+        let mediaMap: Record<string, {type: number; url: string; publicId: string}[]> = {}
+        if (files.length > 0) {
+            await Promise.all(
+                files.map(async (file) => {
+                    const productVariantId = parseInt(file.fieldname.split("=")[1]);
+                    let feedbackId = -1;
+                    let find = false;
+                    for (const item of feedbackTransaction.updateFeedbacks) {
+                        for (const i of item) {
+                            if (i.productVariantId == productVariantId) {
+                                feedbackId = i.id;
+                                find = true
+                                break;
+                            }
+                        }
+                        if (find) {
+                            break;
+                        }
+                    }
+                    const fileBuffer = (file as any).buffer;
+                    const folder = `Commerce/Feedback/${feedbackId}`;
+                    const uniqueId = uuidv4();
+                    const newName = `${Date.now()}-${uniqueId}`
+                    const result = await uploadToCloudinary(fileBuffer as Buffer, folder, newName, file.mimetype.startsWith("video") ? "video" : "image");
+
+                    const type = file.mimetype.startsWith("video") ? 2 : 1;
+
+                    if (!mediaMap[file.fieldname]) {
+                        mediaMap[file.fieldname] = [];
+                    }
+
+                    mediaMap[file.fieldname].push({
+                        type,
+                        url: result.secure_url,
+                        publicId: result.public_id
+                    });
+                })
+            );
+        }
+        if (files.length > 0 && Object.keys(mediaMap).length == 0) {
+            throw new Error("Xảy ra lỗi khi upload hình ảnh và video");
+        }
+        for (const [key, mediaList] of Object.entries(mediaMap)) {
+            const productVariantId = parseInt(key.split("=")[1]);
+            let feedbackId = -1;
+            let find = false;
+            for (const item of feedbackTransaction.updateFeedbacks) {
+                for (const i of item) {
+                    if (i.productVariantId == productVariantId) {
+                        feedbackId = i.id;
+                        find = true
+                        break;
+                    }
+                }
+                if (find) {
+                    break;
+                }
+            }
+            if (feedbackId) {
+                const createMedia = await Promise.all(
+                    mediaList.map(async (item) => (
+                        await prisma.media.create({
+                            data: {
+                                url: item.url,
+                                type: item.type,
+                                feedbackId: feedbackId
+                            }
+                        })
+                    ))
+                )
+                if (mediaList.length != createMedia.length) {
+                    throw new Error("Xảy ra lỗi khi lưu hình ảnh và video");
+                }
+            }
+        }
+        return success("Cập nhật đánh giá thành công", true);
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+export const deleteFeedbackService = async (orderId: number, productIds: number[]): Promise<ReturnData> => {
+    try {
+        const deleteTransaction = await prisma.$transaction(async (tx) => {
+            const deleteFeedback = await tx.feedback.updateManyAndReturn({
+                where: {
+                    AND: [
+                        {orderId: orderId},
+                        {status: 1},
+                        {
+                            order: {
+                                currentStatus: 6
+                            }
+                        }
+                    ]
+                },
+                data: {
+                    status: 2
+                }
+            })
+
+            if (deleteFeedback.length == 0) {
+                throw new Error("Xảy ra lỗi khi xóa đánh giá")
+            }
+
+            const deleteFeedbackId = deleteFeedback.map((item) => (item.id));
+
+            const updateProductStar = await tx.$executeRaw`
+                update "Product"
+                set "rateStar" = coalesce(cal."avgStar", 0)
+                from (
+                    select v."productId", avg(f."star") as "avgStar"
+                    from "ProductVariant" as v
+                    left join "Feedback" as f on f."productVariantId" = v.id and f.status = 1
+                    where v."productId" in (${Prisma.join(productIds)})
+                    group by v."productId"
+                ) as cal
+                where "Product".id = cal."productId"
+            `
+
+            if (updateProductStar == 0) {
+                throw new Error("Xảy ra lỗi khi cập nhật đánh giá sản phẩm");
+            }
+
+            const medias = await tx.media.findMany({
+                where: {
+                    feedbackId: {in: deleteFeedbackId}
+                },
+                select: {
+                    feedbackId: true,
+                    url: true,
+                    type: true
+                }
+            })
+
+            const deleteMedias = await tx.media.deleteMany({
+                where: {
+                    feedbackId: {in: deleteFeedbackId}
+                }
+            })
+
+            if (deleteMedias.count != medias.length) {
+                throw new Error("Xảy ra lỗi khi xóa các file")
+            }
+
+            return medias
+        })
+        console.log(deleteTransaction)
+        for (const item of deleteTransaction) {
+            const publicId = `Commerce/Feedback/${item.feedbackId}/${item.url.split("/").pop()?.split(".")[0]}`
+            await deleteFromCloudinary(publicId, item.type == 1 ? "image" : "video")
+        }
+        return success("Xóa đánh giá thành công", true);
+    } catch(e) {
+        console.log(e);
+        if (e instanceof Error) {
+            return({
+                message: e.message,
+                code: 1,
+                data: false
             })
         }
         return serviceError;
