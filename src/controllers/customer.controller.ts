@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { controllerError, dataError, returnController, ReturnData } from "../interfaces/app.interface";
+import { controllerError, dataError, returnController, ReturnData, serviceError } from "../interfaces/app.interface";
 import * as customerService from "../services/customer.service";
 
 export const getAccountInformationController = async (req: Request, res: Response): Promise<any> => {
@@ -346,6 +346,69 @@ export const returnProductController = async (req: Request, res: Response): Prom
             return res.status(200).json(dataError);
         }
         const result: ReturnData = await customerService.returnProductService(orderId, take, now, accountId, status, reason, mode, productId, productVariantId, quantity);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const sendFeedbackController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, productId, productVariantId, now, star, content, orderId} = req.body;
+        const productIds = JSON.parse(productId);
+        const productVariantIds = JSON.parse(productVariantId);
+        const stars = JSON.parse(star);
+        const contents = JSON.parse(content);
+
+        const result: ReturnData = await customerService.sendFeedbackService(parseInt(accountId), productIds, productVariantIds, now, stars, contents, req.files, parseInt(orderId));
+        returnController(result, res);
+    } catch(e) {
+        console.error("Feedback error:", e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const getFeedbackOrderController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {orderId, accountId} = req.body;
+        if (!orderId || !accountId) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.getFeedbackOrderService(orderId, accountId);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const updateFeedbackController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, productId, productVariantId, now, star, content, orderId, removeMedia, feedbackId, firstRate} = req.body;
+        const productIds = JSON.parse(productId ?? []);
+        const productVariantIds = JSON.parse(productVariantId ?? []);
+        const stars = JSON.parse(star ?? []);
+        const contents = JSON.parse(content ?? []);
+        const removeMedias = JSON.parse(removeMedia ?? []);
+        const feedbackIds = JSON.parse(feedbackId ?? []);
+        const firstRates = JSON.parse(firstRate ?? []);
+
+        const result: ReturnData = await customerService.updateFeedbackService(parseInt(accountId), productIds, productVariantIds, now, stars, contents, req.files, parseInt(orderId), removeMedias, feedbackIds, firstRates);
+        returnController(result, res);
+    } catch(e) {
+        console.error("Feedback error:", e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const deleteFeedbackController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {orderId, productIds} = req.body;
+        if (!orderId || !productIds) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await customerService.deleteFeedbackService(orderId, productIds);
         returnController(result, res);
     } catch(e) {
         console.log(e);

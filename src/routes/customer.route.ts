@@ -1,4 +1,5 @@
-import express from "express";
+import { parseFormData, uploadFeedback } from './../middleware/upload.middleware';
+import express, { Request, Response, NextFunction } from "express";
 import { checkLogin, checkPermission } from "../middleware/jwt";
 import * as customerController from "../controllers/customer.controller";
 
@@ -31,5 +32,9 @@ customerRoute.post("/get-order-list", customerController.getOrderListController)
 customerRoute.post("/get-order-detail", customerController.getOrderDetailController);
 customerRoute.post("/confirm-receive-product", customerController.confirmReceiveProductController);
 customerRoute.post("/return-product", customerController.returnProductController);
+customerRoute.post("/send-feedback", parseFormData.any(), customerController.sendFeedbackController)
+customerRoute.post("/get-feedback-order", customerController.getFeedbackOrderController);
+customerRoute.post("/update-feedback", parseFormData.any(), customerController.updateFeedbackController);
+customerRoute.post("/delete-feedback", customerController.deleteFeedbackController);
 
 export default customerRoute;

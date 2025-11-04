@@ -59,6 +59,7 @@ export interface OrderData {
     total: number,
     paymentTime: string | null,
     paymentMethod: number,
+    feedback: boolean,
     statusHistory: {
         id: number,
         status: number,

@@ -196,6 +196,7 @@ model Order {
   addressId            Int
   note                 String?
   bills                Bill[]
+  feedbacks            Feedback[]
   account              Account?             @relation(fields: [accountId], references: [id])
   address              Address              @relation(fields: [addressId], references: [id])
   orderStatus          OrderStatus?         @relation(fields: [currentStatus], references: [id])
@@ -255,7 +256,9 @@ model Feedback {
   feeedbackDate    DateTime
   star             Int
   status           Int
+  orderId          Int
   account          Account?        @relation(fields: [accountId], references: [id])
+  order            Order           @relation(fields: [orderId], references: [id])
   productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
   medias           Media[]
 }

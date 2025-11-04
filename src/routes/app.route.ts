@@ -2,7 +2,7 @@ import express from "express";
 import * as appController from "../controllers/app.controller";
 
 let appRoute = express.Router();
-
+appRoute.get("/awake-backend", appController.awakeBackendController)
 appRoute.get("/reload-page", appController.reloadPageController);
 appRoute.post("/google-login", appController.googleLoginController);
 appRoute.post("/normal-login", appController.normalLoginController);
@@ -19,5 +19,7 @@ appRoute.post("/save-history", appController.saveHistoryController);
 appRoute.post("/update-cart-leave", appController.updateCartLeaveController);
 appRoute.post("/check-update-cart", appController.checkUpdateCartController);
 appRoute.post("/find-product", appController.findValueController);
+appRoute.post("/get-rate", appController.getRateController);
+appRoute.get("/confirm-receive-product", appController.confirmReceiveProductController);
 
 export default appRoute;
