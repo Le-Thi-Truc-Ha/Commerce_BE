@@ -15,4 +15,4 @@ jobs:
           python-version: 3.9
       - run: pip install numpy==1.20.1 pandas scikit-surprise
       - run: pip install recommenders --no-deps
-      - run: python train_svd.py
+      - run: python recommendation/trainSVD.py
