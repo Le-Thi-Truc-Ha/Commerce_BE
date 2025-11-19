@@ -239,6 +239,7 @@ CREATE TABLE "public"."Feedback" (
     "feeedbackDate" TIMESTAMP(3) NOT NULL,
     "star" INTEGER NOT NULL,
     "status" INTEGER NOT NULL,
+    "orderId" INTEGER NOT NULL,
 
     CONSTRAINT "Feedback_pkey" PRIMARY KEY ("id")
 );
@@ -423,6 +424,9 @@ ALTER TABLE "public"."VoucherOrderDetail" ADD CONSTRAINT "VoucherOrderDetail_vou
 
 -- AddForeignKey
 ALTER TABLE "public"."Feedback" ADD CONSTRAINT "Feedback_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "public"."Account"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Feedback" ADD CONSTRAINT "Feedback_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "public"."Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Feedback" ADD CONSTRAINT "Feedback_productVariantId_fkey" FOREIGN KEY ("productVariantId") REFERENCES "public"."ProductVariant"("id") ON DELETE SET NULL ON UPDATE CASCADE;

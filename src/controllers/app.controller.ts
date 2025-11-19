@@ -294,7 +294,7 @@ export const findValueController = async (req: Request, res: Response): Promise<
             sessionKey = authHeader && authHeader.split(" ")[1];
         }
 
-        const result: ReturnData = await appService.findValueService(findValue, productId, currentPage, req.user?.accountId ?? -1, sessionKey);
+        const result: ReturnData = await appService.findValueService(findValue, productId, currentPage, accountId ?? -1, sessionKey);
         returnController(result, res);
     } catch(e) {
         console.log(e);
