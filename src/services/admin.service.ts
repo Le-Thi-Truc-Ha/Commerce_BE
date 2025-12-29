@@ -269,9 +269,31 @@ const getProductCategories = async (): Promise<ReturnData> => {
     }
 };
 
-const createProduct = async (data: Product): Promise<ReturnData> => {
+const createProduct = async (data: Product, designImage: {url: string, type: number}[]): Promise<ReturnData> => {
     try {
-        const result = await axios.get("/rs/feature-extraction");
+        const featureVectors: Buffer[] = [];
+        try {
+            const result: ReturnData = await axios.post("/rs/feature-extraction", {
+                image_urls: designImage.map((item) => (item.url))
+            });
+            if (result.code != 0) {
+                return result;
+            }
+            for (const item of result.data) {
+                const bytes = Buffer.from(item, "base64");
+                featureVectors.push(bytes);
+            }
+            if (featureVectors.length <= 0) {
+                return({
+                    message: "Không có đặc trưng sản phẩm",
+                    data: false,
+                    code: 1
+                })
+            }
+        } catch(e) {
+            throw new Error("Lỗi server khi trích xuất đặc trưng sản phẩm!")
+        }
+        
         const product = await prisma.product.create({
             data: {
                 name: data.name,
@@ -282,13 +304,13 @@ const createProduct = async (data: Product): Promise<ReturnData> => {
                 medias: data.medias && data.medias.length > 0
                     ? {
                         createMany: {
-                            data: data.medias.map((m) => ({
+                            data: [...data.medias, ...designImage].map((m) => ({
                                 url: m.url,
                                 type: m.type,
                             })),
                         },
                     } : undefined,
-                featureVector: Buffer.from("abcd", "utf-8")
+                featureVector: featureVectors[0]
             }
         });
 
@@ -350,9 +372,10 @@ const createProduct = async (data: Product): Promise<ReturnData> => {
         };
     } catch (e) {
         console.log(e);
+        const message = e instanceof Error ? e.message : "Lỗi server khi tạo sản phẩm!"
         return {
             code: -1,
-            message: "Lỗi server khi tạo sản phẩm!",
+            message: message,
             data: false,
         };
     }
