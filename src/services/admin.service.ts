@@ -594,6 +594,33 @@ const createVariant = async (data: Variant, productId: number): Promise<ReturnDa
             }
         });
 
+        const existingFeature = await prisma.productFeature.findFirst({ where: { productId: Number(productId) } });
+
+        if (existingFeature) {
+            const priceVal = Number(data.price);
+            const priceLevel =
+                priceVal < 100000 ? "thap" :
+                priceVal <= 400000 ? "vua" : "cao";
+
+            await prisma.productFeature.create({
+                data: {
+                    productId: Number(productId),
+                    fit: existingFeature.fit,
+                    material: existingFeature.material,
+                    occasion: existingFeature.occasion,
+                    season: existingFeature.season,
+                    style: existingFeature.style,
+                    age: existingFeature.age,
+                    
+                    color: normalizeStr(data.color || "unknown"),
+                    size: normalizeStr(data.size || "unknown"),
+                    price: priceLevel
+                }
+            });
+        } else {
+            console.log("Sản phẩm chưa tồn tại đặc trưng");
+        }
+
         return {
             code: 0,
             message: "Tạo biến thể thành công!",
