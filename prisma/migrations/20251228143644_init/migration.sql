@@ -64,6 +64,7 @@ CREATE TABLE "public"."Product" (
     "status" INTEGER NOT NULL,
     "saleFigure" INTEGER NOT NULL,
     "rateStar" DOUBLE PRECISION,
+    "featureVector" BYTEA NOT NULL,
 
     CONSTRAINT "Product_pkey" PRIMARY KEY ("id")
 );
@@ -281,14 +282,6 @@ CREATE TABLE "public"."ProductFeature" (
     "price" TEXT NOT NULL,
     "style" TEXT NOT NULL,
     "age" TEXT NOT NULL,
-    "neckline" TEXT NOT NULL,
-    "sleeve" TEXT NOT NULL,
-    "pantLength" TEXT NOT NULL,
-    "pantShape" TEXT NOT NULL,
-    "dressLength" TEXT NOT NULL,
-    "dressShape" TEXT NOT NULL,
-    "skirtLength" TEXT NOT NULL,
-    "skirtShape" TEXT NOT NULL,
 
     CONSTRAINT "ProductFeature_pkey" PRIMARY KEY ("id")
 );

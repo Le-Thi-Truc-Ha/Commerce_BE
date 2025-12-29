@@ -20,7 +20,7 @@ adminRoute.get("/categories-sale", adminController.getCategoriesSaleController);
 adminRoute.get("/products", adminController.getAllProductsController);
 adminRoute.get("/product-id", adminController.getProductByIdController);
 adminRoute.get("/product-categories", adminController.getProductCategoriesController);
-adminRoute.post("/create-product", uploadCloud.array("files", 10), adminController.createProductController);
+adminRoute.post("/create-product", uploadCloud.fields([{ name: "files", maxCount: 10 }, { name: "designImage", maxCount: 1 }, { name: "existingDesignImage", maxCount: 1 }]), adminController.createProductController);
 adminRoute.put("/update-product", uploadCloud.array("files", 10), adminController.updateProductController);
 adminRoute.delete("/delete-product", adminController.deleteProductController);
 

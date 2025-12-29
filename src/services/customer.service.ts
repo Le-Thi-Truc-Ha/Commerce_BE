@@ -350,7 +350,7 @@ export const deleteFavouriteService = async (accountId: number, productId: numbe
             data: {
                 accountId: accountId,
                 productId: productId,
-                behaviorType: 8,
+                behaviorType: 12,
                 time: new Date(now)
             }
         })
@@ -555,7 +555,7 @@ export const addCartService = async (accountId: number, productId: number[], pro
                         data: {
                             accountId: accountId,
                             productId: productId[i],
-                            behaviorType: 2,
+                            behaviorType: 7,
                             time: new Date(now)
                         }
                     })
@@ -581,7 +581,7 @@ export const addCartService = async (accountId: number, productId: number[], pro
                     data: {
                         accountId: accountId,
                         productId: productId[i],
-                        behaviorType: 2,
+                        behaviorType: 7,
                         time: new Date(now)
                     }
                 })
@@ -760,7 +760,7 @@ export const deleteProductInCartService = async (cartId: number[], productId: nu
                         data: {
                             accountId: accountId,
                             productId: item,
-                            behaviorType: 7,
+                            behaviorType: 11,
                             time: new Date(now)
                         }
                     })
@@ -1297,7 +1297,7 @@ export const orderProductService = async (
                     data: {
                         accountId: accountId,
                         productId: item.productId,
-                        behaviorType: 3,
+                        behaviorType: 8,
                         time: new Date(orderDate)
                     }
                 })
@@ -1976,7 +1976,7 @@ export const returnProductService = async (orderId: number, take: number, now: s
                     data: {
                         accountId: accountId,
                         productId: item,
-                        behaviorType: 9,
+                        behaviorType: 13,
                         time: new Date(now)
                     }
                 })
@@ -2123,7 +2123,7 @@ export const sendFeedbackService = async (accountId: number, productIds: number[
                         data: {
                             accountId: accountId,
                             productId: productId,
-                            behaviorType: stars[index] + 10,
+                            behaviorType: stars[index],
                             time: new Date(now)
                         }
                     })
@@ -2282,7 +2282,7 @@ export const updateFeedbackService = async (accountId: number, productIds: numbe
                             data: {
                                 accountId: accountId,
                                 productId: productId,
-                                behaviorType: firstRates[index] < stars[index] ? (stars[index] - firstRates[index]) + 10 : (stars[index] - firstRates[index]) - 10,
+                                behaviorType: stars[index],
                                 time: new Date(now)
                             }
                         })

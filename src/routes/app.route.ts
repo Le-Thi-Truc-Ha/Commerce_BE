@@ -21,5 +21,6 @@ appRoute.post("/check-update-cart", appController.checkUpdateCartController);
 appRoute.post("/find-product", appController.findValueController);
 appRoute.post("/get-rate", appController.getRateController);
 appRoute.get("/confirm-receive-product", appController.confirmReceiveProductController);
+// appRoute.get("/svd", appController.svdController);
 
 export default appRoute;

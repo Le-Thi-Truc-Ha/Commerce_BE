@@ -325,3 +325,13 @@ export const confirmReceiveProductController = async (req: Request, res: Respons
         return res.status(500).json(controllerError);
     }
 }
+
+// export const svdController = async (req: Request, res: Response): Promise<any> => {
+//     try {
+//         const result: ReturnData = await appService.svdService();
+//         returnController(result, res); 
+//     } catch(e) {
+//         console.log(e);
+//         return res.status(500).json(controllerError);
+//     }
+// }
