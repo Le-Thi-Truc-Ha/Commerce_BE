@@ -6,7 +6,7 @@ import { redis } from "../configs/redis";
 import { Prisma } from "@prisma/client";
 import { v1 as uuidv1 } from "uuid"; 
 import dayjs from "dayjs";
-import axios from "axios";
+import axios from "../configs/axios";
 
 //Phải chuyển dữ liệu datetime về dạng string ở format "YYYY-MM-DDTHH:mm:ss" hoặc iso string ở fe để gửi lên be, sau đó ở be chuyển thành Date và lưu db
 //dob.toLocaleString("vi-VN"): Lệnh này để chuyển dữ liệu kiểu datetime lấy từ db về dạng ngày tháng năm thời gian
@@ -936,16 +936,17 @@ export const confirmReceiveProductService = async (): Promise<ReturnData> => {
     }
 }
 
-// export const svdService = async (): Promise<ReturnData> => {
-//     try {
-//         const data = "ABCD";
-//         const callFastAPI = await axios.post("http://127.0.0.1:8000/rs/", {
-//             data
-//         })
-//         console.log(callFastAPI.data);
-//         return serviceError
-//     } catch(e) {
-//         console.log(e);
-//         return serviceError;
-//     }
-// }
+export const trainLightFMService = async (): Promise<ReturnData> => {
+    try {
+        const result = await axios.get("/train-lightfm")
+        console.log(result.data);
+        return serviceError;
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+// import account: psql "postgresql://neondb_owner:npg_2qsNXWHYlwB8@ep-long-rice-a19pgnt3-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require" -c "\copy \"Account\"(\"fullName\", email, password, status, \"roleId\", \"isLoginGoogle\") FROM 'C:/Users/Lenovo/Desktop/account.csv' DELIMITER ',' CSV HEADER;"
+// import behavior: psql "postgresql://neondb_owner:npg_2qsNXWHYlwB8@ep-long-rice-a19pgnt3-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require" -c "\copy \"UserBehavior\"(\"accountId\",\"productId\",\"behaviorType\",\"time\") FROM 'C:/Users/Lenovo/Desktop/alldata.csv' DELIMITER ',' CSV HEADER;"
+
