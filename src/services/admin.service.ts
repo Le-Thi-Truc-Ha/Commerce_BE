@@ -1,3 +1,4 @@
+import axios from "../configs/axios";
 import { prisma, ReturnData, CategoryDash, Product, Media, Variant, Promotion, Voucher, Category } from "../interfaces/admin.interface";
 import dayjs from "dayjs";
 
@@ -270,6 +271,7 @@ const getProductCategories = async (): Promise<ReturnData> => {
 
 const createProduct = async (data: Product): Promise<ReturnData> => {
     try {
+        const result = await axios.get("/rs/feature-extraction");
         const product = await prisma.product.create({
             data: {
                 name: data.name,
@@ -285,7 +287,8 @@ const createProduct = async (data: Product): Promise<ReturnData> => {
                                 type: m.type,
                             })),
                         },
-                    } : undefined
+                    } : undefined,
+                featureVector: Buffer.from("abcd", "utf-8")
             }
         });
 
@@ -324,14 +327,14 @@ const createProduct = async (data: Product): Promise<ReturnData> => {
                     price: priceLevel,
                     style: normalizeStr(data.style) || "unknown",
                     age: normalizeStr(data.age) || "unknown",
-                    neckline: normalizeStr(data.features.neckline || "unknown"),
-                    sleeve: normalizeStr(data.features.sleeve || "unknown"),
-                    pantLength: normalizeStr(data.features.pantLength || "unknown"),
-                    pantShape: normalizeStr(data.features.pantShape || "unknown"),
-                    dressLength: normalizeStr(data.features.dressLength || "unknown"),
-                    dressShape: normalizeStr(data.features.dressShape || "unknown"),
-                    skirtLength: normalizeStr(data.features.skirtLength || "unknown"),
-                    skirtShape: normalizeStr(data.features.skirtShape || "unknown"),
+                    // neckline: normalizeStr(data.features.neckline || "unknown"),
+                    // sleeve: normalizeStr(data.features.sleeve || "unknown"),
+                    // pantLength: normalizeStr(data.features.pantLength || "unknown"),
+                    // pantShape: normalizeStr(data.features.pantShape || "unknown"),
+                    // dressLength: normalizeStr(data.features.dressLength || "unknown"),
+                    // dressShape: normalizeStr(data.features.dressShape || "unknown"),
+                    // skirtLength: normalizeStr(data.features.skirtLength || "unknown"),
+                    // skirtShape: normalizeStr(data.features.skirtShape || "unknown"),
                 };
             });
 

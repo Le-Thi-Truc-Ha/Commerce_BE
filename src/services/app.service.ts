@@ -6,6 +6,7 @@ import { redis } from "../configs/redis";
 import { Prisma } from "@prisma/client";
 import { v1 as uuidv1 } from "uuid"; 
 import dayjs from "dayjs";
+import axios from "axios";
 
 //Phải chuyển dữ liệu datetime về dạng string ở format "YYYY-MM-DDTHH:mm:ss" hoặc iso string ở fe để gửi lên be, sau đó ở be chuyển thành Date và lưu db
 //dob.toLocaleString("vi-VN"): Lệnh này để chuyển dữ liệu kiểu datetime lấy từ db về dạng ngày tháng năm thời gian
@@ -647,7 +648,7 @@ export const saveHistoryService = async (accountId: number, productId: number, n
                     accountId: accountId,
                     productId: productId,
                     time: new Date(now),
-                    behaviorType: 1
+                    behaviorType: 6
                 }
             })
             return success("Thành công", true)
@@ -669,7 +670,7 @@ export const saveHistoryService = async (accountId: number, productId: number, n
                     productId: productId,
                     uuid: uuid,
                     time: new Date(now),
-                    behaviorType: 1
+                    behaviorType: 6
                 }
             })
             return success("Thành công", uuid)
@@ -728,15 +729,7 @@ export const findValueService = async (findValue: string, productId: number[] | 
                             'mau' || ' ' || coalesce(string_agg(f.color, ' '), '') || ' ' ||
                             'kich thuoc size' || ' ' || coalesce(string_agg(f.size, ' '), '') || ' ' ||
                             'style xu huong kieu loai' || ' ' || coalesce(string_agg(f.style, ' '), '') || ' ' ||
-                            'cho nguoi tuoi' || ' ' || coalesce(string_agg(f.age, ''), '') || ' ' ||
-                            'co tay ao chieu dai dang' || ' ' || coalesce(string_agg(f.neckline, ''), '') || ' ' ||
-                            coalesce(string_agg(f.sleeve, ''), '') || ' ' ||
-                            coalesce(string_agg(f."pantLength", ''), '') || ' ' ||
-                            coalesce(string_agg(f."pantShape", ''), '') || ' ' ||
-                            coalesce(string_agg(f."dressLength", ''), '') || ' ' ||
-                            coalesce(string_agg(f."dressShape", ''), '') || ' ' ||
-                            coalesce(string_agg(f."skirtLength", ''), '') || ' ' ||
-                            coalesce(string_agg(f."skirtShape", ''), '')
+                            'cho nguoi tuoi' || ' ' || coalesce(string_agg(f.age, ''), '')
                         )),
                         plainto_tsquery('simple', unaccent(${findValue}))
                     ) as rank
@@ -754,15 +747,7 @@ export const findValueService = async (findValue: string, productId: number[] | 
                     'mau' || ' ' || coalesce(string_agg(f.color, ' '), '') || ' ' ||
                     'kich thuoc size' || ' ' || coalesce(string_agg(f.size, ' '), '') || ' ' ||
                     'style xu huong kieu loai' || ' ' || coalesce(string_agg(f.style, ' '), '') || ' ' ||
-                    'cho nguoi tuoi' || ' ' || coalesce(string_agg(f.age, ''), '') || ' ' ||
-                    'co tay ao chieu dai dang' || ' ' || coalesce(string_agg(f.neckline, ''), '') || ' ' ||
-                    coalesce(string_agg(f.sleeve, ''), '') || ' ' ||
-                    coalesce(string_agg(f."pantLength", ''), '') || ' ' ||
-                    coalesce(string_agg(f."pantShape", ''), '') || ' ' ||
-                    coalesce(string_agg(f."dressLength", ''), '') || ' ' ||
-                    coalesce(string_agg(f."dressShape", ''), '') || ' ' ||
-                    coalesce(string_agg(f."skirtLength", ''), '') || ' ' ||
-                    coalesce(string_agg(f."skirtShape", ''), '')
+                    'cho nguoi tuoi' || ' ' || coalesce(string_agg(f.age, ''), '')
                 )) @@ plainto_tsquery('simple', unaccent(${findValue})) and p.status = 1
                 order by rank desc;
             `;
@@ -775,7 +760,7 @@ export const findValueService = async (findValue: string, productId: number[] | 
                             data: {
                                 accountId: accountId,
                                 productId: item,
-                                behaviorType: 6,
+                                behaviorType: 10,
                                 time: now
                             }
                         })
@@ -792,7 +777,7 @@ export const findValueService = async (findValue: string, productId: number[] | 
                             data: {
                                 uuid: uuid,
                                 productId: item,
-                                behaviorType: 6,
+                                behaviorType: 10,
                                 time: now
                             }
                         })
@@ -950,3 +935,17 @@ export const confirmReceiveProductService = async (): Promise<ReturnData> => {
         return serviceError;
     }
 }
+
+// export const svdService = async (): Promise<ReturnData> => {
+//     try {
+//         const data = "ABCD";
+//         const callFastAPI = await axios.post("http://127.0.0.1:8000/rs/", {
+//             data
+//         })
+//         console.log(callFastAPI.data);
+//         return serviceError
+//     } catch(e) {
+//         console.log(e);
+//         return serviceError;
+//     }
+// }

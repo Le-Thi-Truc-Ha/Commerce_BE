@@ -66,9 +66,7 @@ export const productInfomation = (now: Date, accountId: number) => ({
     status: true,
     saleFigure: true,
     medias: {
-        
         take: 1,
-        
         select: {
             url: true
         }

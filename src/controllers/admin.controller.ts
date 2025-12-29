@@ -147,13 +147,18 @@ const createProductController = async (req: Request, res: Response): Promise<any
             data.variants = JSON.parse(data.variants);
         }
 
-        const files = req.files as Express.Multer.File[];
-        if (files && files.length > 0) {
-            data.medias = files.map((file) => ({
-                url: (file as any).path,
-                type: file.mimetype.startsWith("video") ? 2 : 1,
-            }));
-        }
+        const filesField = (req.files as { [fieldname: string]: Express.Multer.File[] })['files'] || [];
+        const designImageField = (req.files as { [fieldname: string]: Express.Multer.File[] })['designImage'] || [];
+        const existingDesignImageField = (req.files as { [fieldname: string]: Express.Multer.File[] })['existingDesignImage'] || [];
+
+        data.medias = [
+            ...filesField.map(file => ({ url: file.path, type: file.mimetype.startsWith("video") ? 2 : 1 }))
+        ];
+
+        data.designImage = [
+            ...designImageField.map(file => ({ url: file.path, type: file.mimetype.startsWith("video") ? 2 : 1 })),
+            ...existingDesignImageField.map(file => ({ url: file.path, type: file.mimetype.startsWith("video") ? 2 : 1 })),
+        ]
 
         const result: ReturnData = await adminService.createProduct(data);
         return res.status(200).json({

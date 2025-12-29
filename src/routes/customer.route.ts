@@ -1,4 +1,4 @@
-import { parseFormData, uploadFeedback } from './../middleware/upload.middleware';
+import { parseFormData } from './../middleware/upload.middleware';
 import express, { Request, Response, NextFunction } from "express";
 import { checkLogin, checkPermission } from "../middleware/jwt";
 import * as customerController from "../controllers/customer.controller";
