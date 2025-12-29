@@ -155,12 +155,12 @@ const createProductController = async (req: Request, res: Response): Promise<any
             ...filesField.map(file => ({ url: file.path, type: file.mimetype.startsWith("video") ? 2 : 1 }))
         ];
 
-        data.designImage = [
+        const designImage = [
             ...designImageField.map(file => ({ url: file.path, type: file.mimetype.startsWith("video") ? 2 : 1 })),
             ...existingDesignImageField.map(file => ({ url: file.path, type: file.mimetype.startsWith("video") ? 2 : 1 })),
         ]
 
-        const result: ReturnData = await adminService.createProduct(data);
+        const result: ReturnData = await adminService.createProduct(data, designImage);
         return res.status(200).json({
             message: result.message,
             code: result.code,
