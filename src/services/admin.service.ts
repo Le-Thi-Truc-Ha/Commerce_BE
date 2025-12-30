@@ -365,6 +365,8 @@ const createProduct = async (data: Product, designImage: {url: string, type: num
             });
         }
 
+        axios.get("/rs/train-lightfm").catch((e) => console.log("Lỗi khi train lightfm:", e));
+
         return {
             code: 0,
             message: "Tạo sản phẩm thành công!",

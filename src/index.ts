@@ -19,10 +19,13 @@ app.use(express.urlencoded({extended: true}));
 
 initWebRoute(app);
 
-// Phút Giờ Ngày Tháng Thứ (8:00 mỗi ngày)
-cron.schedule("0 5 * * *", async () => {
+// Phút Giờ Ngày Tháng Thứ (3:00 mỗi ngày)
+cron.schedule("0 3 * * *", async () => {
     try {
-        await axios.get(process.env.CONFIRM_RECEIVE_URL || "")
+        await Promise.all([
+            axios.get(process.env.CONFIRM_RECEIVE_URL || ""),
+            axios.get(process.env.TRAIN_LIGHTFM_URL || "")
+        ]);
     } catch(e) {
         console.log(e);
     }
