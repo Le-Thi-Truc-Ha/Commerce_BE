@@ -349,14 +349,6 @@ const createProduct = async (data: Product, designImage: {url: string, type: num
                     price: priceLevel,
                     style: normalizeStr(data.style) || "unknown",
                     age: normalizeStr(data.age) || "unknown",
-                    // neckline: normalizeStr(data.features.neckline || "unknown"),
-                    // sleeve: normalizeStr(data.features.sleeve || "unknown"),
-                    // pantLength: normalizeStr(data.features.pantLength || "unknown"),
-                    // pantShape: normalizeStr(data.features.pantShape || "unknown"),
-                    // dressLength: normalizeStr(data.features.dressLength || "unknown"),
-                    // dressShape: normalizeStr(data.features.dressShape || "unknown"),
-                    // skirtLength: normalizeStr(data.features.skirtLength || "unknown"),
-                    // skirtShape: normalizeStr(data.features.skirtShape || "unknown"),
                 };
             });
 
