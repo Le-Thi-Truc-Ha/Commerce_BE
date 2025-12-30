@@ -936,9 +936,68 @@ export const confirmReceiveProductService = async (): Promise<ReturnData> => {
     }
 }
 
+export const getProductInListService = async (productId: number[], accountId: number) => {
+    try {
+        const productData = [];
+        for (const item of productId) {
+            const product = await prisma.product.findUnique({
+                where: {
+                    id: item
+                }, 
+                select: productInfomation(new Date(), accountId)
+            })
+            productData.push(product);
+        }
+        return ({
+            message: "Thành công",
+            code: 0,
+            data: productData
+        });
+    } catch(e) {
+        console.log(e);
+        return serviceError;
+    }
+}
+
+export const getRecommendService = async (accountId: number, uuid: string, productRecent: number[]) => {
+    try {
+        if (accountId == -1 && uuid == "") {
+            return({
+                message: "Dữ liệu không hợp lệ",
+                data: false,
+                code: 1
+            })
+        }
+        const user: string = accountId == -1 ? uuid : accountId.toString();
+        let productId: number[] = [];
+        try {
+            const result: number[] = await axios.post("/rs/get-recommend", {
+                account_id: user,
+                recent_product: productRecent
+            })
+            productId = result;
+        } catch(e) {
+            throw new Error("Xảy ra lỗi khi lấy sản phẩm gợi ý")
+        }
+        const resultData = await getProductInListService(productId.slice(0, 8), accountId);
+        return ({
+            message: "Thành công",
+            code: 0,
+            data: {
+                productId: productId,
+                productInfomation: resultData.data
+            }
+        });
+    } catch(e) {
+        console.log(e);
+        const message = e instanceof Error ? e.message : "Lỗi server khi tạo sản phẩm!"
+        return {...serviceError, message: message};
+    }
+}
+
 export const trainLightFMService = async (): Promise<ReturnData> => {
     try {
-        const result = await axios.get("/train-lightfm")
+        const result = await axios.get("/rs/train-lightfm")
         console.log(result.data);
         return serviceError;
     } catch(e) {

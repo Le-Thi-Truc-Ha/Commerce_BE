@@ -326,6 +326,40 @@ export const confirmReceiveProductController = async (req: Request, res: Respons
     }
 }
 
+export const getRecommendController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {accountId, productRecent} = req.body;
+        if (!accountId || !productRecent) {
+            return res.status(200).json(dataError);
+        }
+        let uuid = "";
+        const authHeader = req.headers["authorization"];
+        const sessionKey = authHeader && authHeader.split(" ")[1];
+        if (accountId == -1 && sessionKey) {
+            uuid = sessionKey;
+        }
+        const result: ReturnData = await appService.getRecommendService(accountId, uuid, productRecent);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
+export const getMoreRecommendController = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const {productId, accountId} = req.body;
+        if (!productId || !accountId) {
+            return res.status(200).json(dataError);
+        }
+        const result: ReturnData = await appService.getProductInListService(productId, accountId);
+        returnController(result, res);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json(controllerError);
+    }
+}
+
 export const trainLightFMController = async (req: Request, res: Response): Promise<any> => {
     try {
         const result: ReturnData = await appService.trainLightFMService();
